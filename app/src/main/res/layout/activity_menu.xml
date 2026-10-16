@@ -1,6 +1,72 @@
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                                                   android:layout_width="match_parent"
-                                                   android:layout_height="match_parent">
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+<?xml version=
+        "1.0" encoding=
+        "utf-8"?>
+<LinearLayout
+        xmlns:android=
+                "http://schemas.android.com/apk/res/android"
+        android:layout_width=
+                "match_parent"
+        android:layout_height=
+                "match_parent"
+        android:fitsSystemWindows=
+                "true"
+        android:gravity=
+                "center_vertical"
+        android:orientation=
+                "vertical"
+        android:padding=
+                "24dp">
+    <TextView
+            android:id=
+                    "@+id/tvBemVindo"
+            android:layout_width=
+                    "match_parent"
+            android:layout_height=
+                    "wrap_content"
+            android:layout_marginBottom=
+                    "24dp"
+            android:textSize=
+                    "18sp" />
+    <Button
+            android:id=
+                    "@+id/btnPlanearRota"
+            android:layout_width=
+                    "match_parent"
+            android:layout_height=
+                    "wrap_content"
+            android:layout_marginBottom=
+                    "12dp"
+            android:text=
+                    "@string/menu_planear" />
+    <Button
+            android:id=
+                    "@+id/btnRotaPredefinida"
+            android:layout_width=
+                    "match_parent"
+            android:layout_height=
+                    "wrap_content"
+            android:layout_marginBottom=
+                    "12dp"
+            android:text=
+                    "@string/menu_predefinida" />
+    <Button
+            android:id=
+                    "@+id/btnRotaCriada"
+            android:layout_width=
+                    "match_parent"
+            android:layout_height=
+                    "wrap_content"
+            android:layout_marginBottom=
+                    "12dp"
+            android:text=
+                    "@string/menu_criada" />
+    <Button
+            android:id=
+                    "@+id/btnModoLivre"
+            android:layout_width=
+                    "match_parent"
+            android:layout_height=
+                    "wrap_content"
+            android:text=
+                    "@string/menu_livre" />
+</LinearLayout>

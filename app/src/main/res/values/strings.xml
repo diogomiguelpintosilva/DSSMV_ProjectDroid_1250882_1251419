@@ -1,4 +1,67 @@
 <resources>
     <string name="app_name">Atividades Fisicas</string>
     <string name="text_message">Text message</string>
+
+    <!-- Login -->
+    <string name="login_titulo">Atividades Físicas</string>
+    <string name="login_email">Email</string>
+    <string name="login_password">Palavra-passe</string>
+    <string name="login_entrar">Entrar</string>
+    <string name="login_campos_vazios">Preencha o email e a palavra-passe.</string>
+
+    <!-- Permissões -->
+    <string name="permissao_localizacao_necessaria">A permissão de localização é necessária para registar o percurso.</string>
+
+    <!-- Menu -->
+    <string name="menu_bemvindo">Olá, %1$s</string>
+    <string name="menu_planear">Planear rota</string>
+    <string name="menu_predefinida">Escolher rota predefinida</string>
+    <string name="menu_criada">Escolher rota criada previamente</string>
+    <string name="menu_livre">Modo livre</string>
+
+    <!-- Planear rota -->
+    <string name="planear_info">Toque no mapa para marcar os pontos da rota (%1$d pontos)</string>
+    <string name="planear_desfazer">Desfazer ponto</string>
+    <string name="planear_guardar">Guardar rota</string>
+    <string name="planear_minimo_pontos">Marque pelo menos 2 pontos.</string>
+    <string name="planear_guardar_titulo">Nome da rota</string>
+    <string name="planear_nome_hint">Ex.: Passeio de domingo</string>
+    <string name="planear_guardada">Rota guardada.</string>
+    <string name="guardar">Guardar</string>
+
+    <!-- Escolher rota -->
+    <string name="escolher_titulo_predefinida">Rotas predefinidas</string>
+    <string name="escolher_titulo_criada">Rotas criadas previamente</string>
+    <string name="escolher_vazio">Ainda não criou nenhuma rota. Use \"Planear rota\" no menu.</string>
+
+    <!-- Atividade -->
+    <string name="atividade_tempo">Tempo</string>
+    <string name="atividade_velocidade">Velocidade</string>
+    <string name="atividade_altitude">Altitude</string>
+    <string name="atividade_foto">Tirar foto</string>
+    <string name="atividade_video">Gravar vídeo</string>
+    <string name="atividade_terminar">Terminar</string>
+    <string name="atividade_posicao_atual">Posição atual</string>
+    <string name="atividade_usar_terminar">Use o botão Terminar para sair da atividade.</string>
+    <string name="atividade_rota_nao_encontrada">Rota não encontrada.</string>
+    <string name="atividade_ativar_gps">Ative o GPS do telemóvel para registar o percurso.</string>
+    <string name="atividade_lembrete">Que tal tirar uma foto ou gravar um vídeo do percurso?</string>
+    <string name="atividade_desvio">Está a desviar-se da rota pretendida!</string>
+    <string name="atividade_foto_guardada">Foto guardada com as métricas do momento.</string>
+    <string name="atividade_foto_sem_metricas">Foto guardada (não foi possível desenhar as métricas).</string>
+    <string name="atividade_video_a_processar">A adicionar velocidade e altitude ao vídeo...</string>
+    <string name="atividade_video_guardado">Vídeo guardado com as métricas do momento.</string>
+    <string name="atividade_video_sem_metricas">Vídeo guardado sem métricas (erro ao processar).</string>
+    <string name="atividade_a_processar">A processar capturas, aguarde um momento.</string>
+
+    <!-- Resumo -->
+    <string name="resumo_titulo">Resumo da atividade</string>
+    <string name="resumo_tempo_total">Tempo total: %1$s</string>
+    <string name="resumo_velocidade_media">Velocidade média: %1$s</string>
+    <string name="resumo_distancia_total">Distância total: %1$s</string>
+    <string name="resumo_sem_capturas">Não foram feitas fotos nem vídeos, por isso não há vídeo resumo.</string>
+    <string name="resumo_a_gerar">A gerar o vídeo resumo (máx. 2 minutos)...</string>
+    <string name="resumo_erro_video">Não foi possível gerar o vídeo resumo.</string>
+    <string name="resumo_video_pronto">Vídeo resumo da atividade:</string>
+    <string name="resumo_voltar">Voltar ao menu</string>
 </resources>

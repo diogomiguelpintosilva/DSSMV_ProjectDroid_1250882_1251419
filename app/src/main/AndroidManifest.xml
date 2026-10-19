@@ -2,6 +2,31 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+
+    <uses-feature
+            android:name="android.hardware.location.gps"
+            android:required="false"/>
+    <uses-feature
+            android:name="android.hardware.camera"
+            android:required="false"/>
+
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE"/>
+        </intent>
+        <intent>
+            <action android:name="android.media.action.VIDEO_CAPTURE"/>
+        </intent>
+    </queries>
+
     <application
             android:allowBackup="true"
             android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,15 +36,61 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:theme="@style/Theme.AtividadesFisicas">
+
+        <!-- Ecrã inicial: UC0 Fazer Login -->
         <activity
-                android:name=".MainActivity"
-                android:exported="true">
+                android:name=".ui.LoginActivity"
+                android:exported="true"
+                android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <activity
+                android:name=".ui.MenuPrincipalActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.PlanearRotaActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.EscolherRotaActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.AtividadeActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.ResumoActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+
+        <!-- Exercício anterior (lista de bateristas): mantido, mas já não é o ecrã inicial -->
+        <activity
+                android:name=".MainActivity"
+                android:exported="false"/>
+
+        <!-- Serviço de GPS em primeiro plano -->
+        <service
+                android:name=".location.LocationService"
+                android:exported="false"
+                android:foregroundServiceType="location"/>
+
+        <!-- Partilha de ficheiros com a app da câmara (foto/vídeo) -->
+        <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+            <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/file_paths"/>
+        </provider>
     </application>
 
 </manifest>

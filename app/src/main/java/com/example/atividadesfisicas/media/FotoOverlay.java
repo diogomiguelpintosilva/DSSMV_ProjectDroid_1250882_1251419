@@ -29,8 +29,7 @@ public final class FotoOverlay {
         limites.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(caminho, limites);
         int amostragem = 1;
-        while (Math.max(limites.outWidth, limites.outHeight) /
-                amostragem > LADO_MAXIMO) {
+        while (Math.max(limites.outWidth, limites.outHeight) / amostragem > LADO_MAXIMO) {
             amostragem *= 2;
         }
         BitmapFactory.Options opcoes = new BitmapFactory.Options();
@@ -44,33 +43,23 @@ public final class FotoOverlay {
         if (rotacao != 0) {
             Matrix matriz = new Matrix();
             matriz.postRotate(rotacao);
-            rodada = Bitmap.createBitmap(original, 0, 0,
-                    original.getWidth(), original.getHeight(), matriz, true);
+            rodada = Bitmap.createBitmap(original, 0, 0, original.getWidth(), original.getHeight(), matriz, true);
         }
-        Bitmap resultado = rodada.copy(Bitmap.Config.ARGB_8888,
-                true);
-        desenharTexto(new Canvas(resultado), resultado.getWidth(),
-                resultado.getHeight(), telemetria);
+        Bitmap resultado = rodada.copy(Bitmap.Config.ARGB_8888, true);
+        desenharTexto(new Canvas(resultado), resultado.getWidth(), resultado.getHeight(), telemetria);
         FileOutputStream out = new FileOutputStream(ficheiro);
         try {
-            resultado.compress(Bitmap.CompressFormat.JPEG, 90, out);
-            out.flush();
+            resultado.compress(Bitmap.CompressFormat.JPEG, 90, out);out.flush();
         } finally {
             out.close();
         }
     }
-    private static void desenharTexto(Canvas canvas, int largura,
-                                      int altura, Telemetria t) {
+    private static void desenharTexto(Canvas canvas, int largura, int altura, Telemetria t) {
         String texto;
         if (t == null) {
-            texto =
-                    "Vel: -- | Alt: -- ";
+            texto = "Vel: -- | Alt: -- ";
         } else {
-            texto =
-                    "Vel: " +
-                            FormatUtil.formatarVelocidade(t.getVelocidadeKmh())
-                            + " | Alt: " +
-                            FormatUtil.formatarAltitude(t.getAltitude());
+            texto = "Vel: " + FormatUtil.formatarVelocidade(t.getVelocidadeKmh()) + " | Alt: " + FormatUtil.formatarAltitude(t.getAltitude());
         }
         Paint tinta = new Paint(Paint.ANTI_ALIAS_FLAG);
         tinta.setColor(Color.WHITE);
@@ -83,10 +72,8 @@ public final class FotoOverlay {
         float esquerda = margem;
         float fundoBaixo = altura - margem;
         float fundoTopo = fundoBaixo - alturaTexto - margem;
-        canvas.drawRect(esquerda, fundoTopo, esquerda + larguraTexto
-                + 2 * margem, fundoBaixo, fundo);
-        canvas.drawText(texto, esquerda + margem, fundoBaixo -
-                margem * 0.8f, tinta);
+        canvas.drawRect(esquerda, fundoTopo, esquerda + larguraTexto + 2 * margem, fundoBaixo, fundo);
+        canvas.drawText(texto, esquerda + margem, fundoBaixo - margem * 0.8f, tinta);
     }
     private static int lerRotacao(String caminho) {
         try {

@@ -7,6 +7,7 @@ import android.location.LocationManager;
 import com.example.atividadesfisicas.model.PontoGPS;
 import com.example.atividadesfisicas.util.PermissoesHelper;
 import org.osmdroid.config.Configuration;
+import org.osmdroid.config.IConfigurationProvider;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
@@ -15,7 +16,6 @@ import org.osmdroid.views.overlay.Polyline;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import org.osmdroid.config.IConfigurationProvider;
 
 /**
  * Tudo o que depende da biblioteca de mapas (OpenStreetMap / osmdroid) está aqui,

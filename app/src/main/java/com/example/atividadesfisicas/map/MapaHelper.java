@@ -15,6 +15,7 @@ import org.osmdroid.views.overlay.Polyline;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import org.osmdroid.config.IConfigurationProvider;
 
 /**
  * Tudo o que depende da biblioteca de mapas (OpenStreetMap / osmdroid) está aqui,
@@ -29,7 +30,7 @@ public final class MapaHelper {
      * Chamar ANTES de setContentView em qualquer ecrã com mapa.
      */
     public static void inicializar(Context ctx) {
-        Configuration cfg = Configuration.getInstance();
+        IConfigurationProvider cfg = Configuration.getInstance();
         cfg.setUserAgentValue(ctx.getPackageName());
         File base = new File(ctx.getCacheDir(), "osmdroid");
         cfg.setOsmdroidBasePath(base);

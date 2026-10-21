@@ -1,4 +1,9 @@
 package com.example.atividadesfisicas.auth;
 
-public class AuthException {
+/** Erro de autenticação com mensagem pronta a mostrar ao utilizador. */
+public class AuthException extends Exception {
+
+    public AuthException(String mensagem) {
+        super(mensagem);
+    }
 }

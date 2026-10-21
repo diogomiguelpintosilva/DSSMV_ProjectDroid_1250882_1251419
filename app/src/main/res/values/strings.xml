@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name">Atividades Fisicas</string>
+    <string name="app_name">WayLine</string>
     <string name="text_message">Text message</string>
 
     <!-- Login -->
-    <string name="login_titulo">Atividades Físicas</string>
+    <string name="login_titulo">WayLine</string>
     <string name="login_email">Email</string>
     <string name="login_password">Palavra-passe</string>
     <string name="login_entrar">Entrar</string>

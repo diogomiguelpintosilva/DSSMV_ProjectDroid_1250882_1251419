@@ -1,4 +1,11 @@
 package com.example.atividadesfisicas.model;
 
-public class VideoComTelemetria {
+/**
+ * Modelo de domínio: vídeo com velocidade e altitude sobrepostas (overlay).
+ */
+public class VideoComTelemetria extends Video {
+
+    public VideoComTelemetria(String caminho, long instante, long duracaoMs) {
+        super(caminho, instante, duracaoMs);
+    }
 }

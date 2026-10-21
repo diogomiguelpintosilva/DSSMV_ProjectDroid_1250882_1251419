@@ -32,14 +32,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * - UC8: depois de o vídeo ser gravado, "queima" nele a velocidade e a altitude de cada instante (overlay).
- * - Usa o Media3 Transformer. TEM de ser chamado na UI thread (os callbacks também chegam à UI thread).
+ * UC8: depois de o vídeo ser gravado, "queima" nele a velocidade e a altitude de cada instante (overlay).
+ * Usa o Media3 Transformer. TEM de ser chamado na UI thread (os callbacks também chegam à UI thread).
  */
 @OptIn(markerClass = UnstableApi.class)
 public final class VideoOverlayProcessor {
 
     public interface Listener {
         void onConcluido();
+
         void onErro(Exception e);
     }
 
@@ -70,10 +71,14 @@ public final class VideoOverlayProcessor {
      * @param amostras telemetria recolhida durante a atividade
      * @param inicioMs instante (System.currentTimeMillis) em que o vídeo começou a ser gravado
      */
-    public static void processar(Context ctx, File entrada, File saida, List<Telemetria> amostras, long inicioMs, final Listener listener) {
+    public static void processar(Context ctx, File entrada, File saida, List<Telemetria> amostras,
+                                 long inicioMs, final Listener listener) {
         TelemetriaOverlay overlay = new TelemetriaOverlay(amostras, inicioMs);
         OverlayEffect efeitoOverlay = new OverlayEffect(ImmutableList.<TextureOverlay>of(overlay));
-        Effects efeitos = new Effects(ImmutableList.<AudioProcessor>of(), ImmutableList.<Effect>of(efeitoOverlay));
+        Effects efeitos = new Effects(
+                ImmutableList.<AudioProcessor>of(),
+                ImmutableList.<Effect>of(efeitoOverlay)
+        );
         EditedMediaItem item = new EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(entrada)))
                 .setEffects(efeitos)
                 .build();
@@ -141,3 +146,18 @@ public final class VideoOverlayProcessor {
          * Última amostra com instante <= ao pedido (ou a primeira, se o vídeo começar antes da primeira amostra).
          */
         private Telemetria procurar(long instante) {
+            if (amostras.isEmpty()) {
+                return null;
+            }
+            Telemetria escolhida = amostras.get(0);
+            for (Telemetria t : amostras) {
+                if (t.getInstante() <= instante) {
+                    escolhida = t;
+                } else {
+                    break;
+                }
+            }
+            return escolhida;
+        }
+    }
+}

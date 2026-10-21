@@ -70,11 +70,6 @@
                 android:exported="false"
                 android:screenOrientation="portrait"/>
 
-        <!-- Exercício anterior (lista de bateristas): mantido, mas já não é o ecrã inicial -->
-        <activity
-                android:name=".MainActivity"
-                android:exported="false"/>
-
         <!-- Serviço de GPS em primeiro plano -->
         <service
                 android:name=".location.LocationService"

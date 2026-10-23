@@ -11,6 +11,10 @@ public final class Config {
     /** Web API Key do projeto Firebase (Project settings > General). Autenticação Email/Password tem de estar ativa. */
     public static final String FIREBASE_API_KEY = "AIzaSyBtXZgijThuMFkOlywY2EXkGqfxfnNbxAk";
 
+    /**Identificação da app nos pedidos de mapas.*/
+    public static final String USER_AGENT_MAPA =
+            "DSSMV_ProjectDroid/1.0 (projeto academico ISEP; +https://github.com/diogomiguelpintosilva/DSSMV_ProjectDroid_1250882_1251419)";
+
     /** Tipo de atividade (a aplicação não distingue corrida de caminhada). */
     public static final String TIPO_ATIVIDADE = "corrida/caminhada";
 

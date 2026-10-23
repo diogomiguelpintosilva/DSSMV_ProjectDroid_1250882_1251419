@@ -5,6 +5,7 @@ import android.content.Context;
 import android.location.Location;
 import android.location.LocationManager;
 import com.example.atividadesfisicas.model.PontoGPS;
+import com.example.atividadesfisicas.util.Config;
 import com.example.atividadesfisicas.util.PermissoesHelper;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.config.IConfigurationProvider;
@@ -31,7 +32,7 @@ public final class MapaHelper {
      */
     public static void inicializar(Context ctx) {
         IConfigurationProvider cfg = Configuration.getInstance();
-        cfg.setUserAgentValue(ctx.getPackageName());
+        cfg.setUserAgentValue(Config.USER_AGENT_MAPA);
         File base = new File(ctx.getCacheDir(), "osmdroid");
         cfg.setOsmdroidBasePath(base);
         cfg.setOsmdroidTileCache(new File(base, "tiles"));

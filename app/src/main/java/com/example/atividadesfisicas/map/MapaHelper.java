@@ -2,6 +2,11 @@ package com.example.atividadesfisicas.map;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.location.Location;
 import android.location.LocationManager;
 import com.example.atividadesfisicas.model.PontoGPS;
@@ -14,6 +19,8 @@ import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Polyline;
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +30,9 @@ import java.util.List;
  * para ser fácil trocar de biblioteca (ex.: Google Maps) mexendo só neste ficheiro.
  */
 public final class MapaHelper {
+
+    /** Centro do mapa enquanto não há posição do utilizador (Porto / Vila Nova de Gaia). */
+    private static final GeoPoint LOCAL_POR_OMISSAO = new GeoPoint(41.1400, -8.6130);
 
     private MapaHelper() {
     }
@@ -42,6 +52,68 @@ public final class MapaHelper {
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setMultiTouchControls(true);
         map.getController().setZoom(zoom);
+        // sem isto o mapa abre em (0,0); começa no Porto/Gaia até haver posição do utilizador
+        map.getController().setCenter(LOCAL_POR_OMISSAO);
+    }
+
+    /**
+     * Acrescenta ao mapa o ícone da posição do utilizador, que o acompanha enquanto se desloca.
+     * Se seguir=true, o mapa fica centrado no utilizador (deixa de seguir se tocar/arrastar o mapa).
+     * Chamar disableMyLocation() em onPause e enableMyLocation() em onResume.
+     */
+    public static MyLocationNewOverlay adicionarMinhaLocalizacao(Context ctx, MapView map, boolean seguir) {
+        MyLocationNewOverlay overlay = new MyLocationNewOverlay(new GpsMyLocationProvider(ctx), map);
+        // ícones próprios (roxo com contorno branco) para se distinguirem do mapa e das linhas das rotas
+        Bitmap ponto = criarIconeUtilizador(ctx, false);
+        Bitmap seta = criarIconeUtilizador(ctx, true);
+        overlay.setDirectionArrow(ponto, seta);
+        overlay.setPersonHotspot(ponto.getWidth() / 2f, ponto.getHeight() / 2f);
+        overlay.enableMyLocation();
+        if (seguir) {
+            overlay.enableFollowLocation();
+        }
+        map.getOverlays().add(overlay);
+        return overlay;
+    }
+
+    private static final int COR_UTILIZADOR = 0xFFAA00FF;
+
+    /**
+     * Desenha o ícone da posição do utilizador: um ponto roxo com halo (parado) ou uma seta roxa
+     * (em movimento). Os dois têm contorno branco.
+     */
+    private static Bitmap criarIconeUtilizador(Context ctx, boolean seta) {
+        float d = ctx.getResources().getDisplayMetrics().density;
+        int tam = Math.round(44 * d);
+        Bitmap bmp = Bitmap.createBitmap(tam, tam, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bmp);
+        Paint tinta = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float cx = tam / 2f;
+        float cy = tam / 2f;
+        if (!seta) {
+            tinta.setColor((COR_UTILIZADOR & 0x00FFFFFF) | 0x55000000);
+            canvas.drawCircle(cx, cy, tam / 2f, tinta);
+            tinta.setColor(Color.WHITE);
+            canvas.drawCircle(cx, cy, tam * 0.30f, tinta);
+            tinta.setColor(COR_UTILIZADOR);
+            canvas.drawCircle(cx, cy, tam * 0.22f, tinta);
+        } else {
+            Path caminho = new Path();
+            caminho.moveTo(cx, tam * 0.06f);
+            caminho.lineTo(tam * 0.84f, tam * 0.90f);
+            caminho.lineTo(cx, tam * 0.70f);
+            caminho.lineTo(tam * 0.16f, tam * 0.90f);
+            caminho.close();
+            tinta.setStyle(Paint.Style.STROKE);
+            tinta.setStrokeWidth(4 * d);
+            tinta.setStrokeJoin(Paint.Join.ROUND);
+            tinta.setColor(Color.WHITE);
+            canvas.drawPath(caminho, tinta);
+            tinta.setStyle(Paint.Style.FILL);
+            tinta.setColor(COR_UTILIZADOR);
+            canvas.drawPath(caminho, tinta);
+        }
+        return bmp;
     }
 
     public static GeoPoint paraGeoPoint(PontoGPS p) {

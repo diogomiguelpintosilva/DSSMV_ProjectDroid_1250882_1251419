@@ -21,6 +21,7 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.MapEventsOverlay;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polyline;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ public class PlanearRotaActivity extends AppCompatActivity {
     private MapView map;
     private TextView tvInfo;
     private Polyline linha;
+    private MyLocationNewOverlay minhaLocalizacao;
     private final List<GeoPoint> pontos = new ArrayList<>();
     private final List<Marker> marcadores = new ArrayList<>();
 
@@ -71,6 +73,9 @@ public class PlanearRotaActivity extends AppCompatActivity {
 
         linha = MapaHelper.criarLinha(new ArrayList<GeoPoint>(), 0xFF1565C0, 10f);
         map.getOverlays().add(linha);
+
+        // ícone da posição do utilizador (o mapa centra-se nele quando há posição)
+        minhaLocalizacao = MapaHelper.adicionarMinhaLocalizacao(this, map, true);
 
         btnDesfazer.setOnClickListener(v -> desfazerUltimoPonto());
         btnGuardar.setOnClickListener(v -> pedirNomeEGuardar());
@@ -144,11 +149,13 @@ public class PlanearRotaActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         map.onResume();
+        minhaLocalizacao.enableMyLocation();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         map.onPause();
+        minhaLocalizacao.disableMyLocation();
     }
 }

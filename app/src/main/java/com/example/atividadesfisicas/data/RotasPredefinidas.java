@@ -31,6 +31,15 @@ public final class RotasPredefinidas {
         adicionar(jardim, 41.14750, -8.62540); // Palácio de Cristal
         lista.add(jardim);
 
+        // Coordenadas de pontos reais de Gaia (Jardim do Morro, Passeio das Caves, Afurada);
+        // o ponto intermédio é aproximado. Confirmar no mapa e ajustar se for preciso.
+        Rota gaia = new Rota("pre_3", "Gaia: Jardim do Morro - Afurada", Rota.Modo.PREDEFINIDA);
+        adicionar(gaia, 41.13721, -8.60906); // Jardim do Morro
+        adicionar(gaia, 41.13764, -8.61447); // Passeio das Caves (Av. Diogo Leite)
+        adicionar(gaia, 41.13700, -8.62300); // margem do Douro
+        adicionar(gaia, 41.13600, -8.63092); // Afurada
+        lista.add(gaia);
+
         return lista;
     }
 

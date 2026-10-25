@@ -29,6 +29,18 @@ public final class HttpUtil {
 
     /** POST com corpo JSON. Devolve o código e o corpo (também em caso de erro HTTP, ex.: 400). */
     public static Resposta postJson(String urlStr, String json) throws IOException {
+        return pedido("POST", urlStr, json, "application/json; charset=UTF-8", null);
+    }
+
+    /**
+     * Pedido HTTP genérico (GET, POST, ...).
+     *
+     * @param corpo       corpo do pedido (null em GET)
+     * @param contentType tipo do corpo (null se não houver corpo)
+     * @param bearer      token enviado em "Authorization: Bearer ..." (null se não for preciso)
+     */
+    public static Resposta pedido(String metodo, String urlStr, String corpo, String contentType,
+                                  String bearer) throws IOException {
         HttpURLConnection httpConn = null;
         try {
             URL url = new URL(urlStr);
@@ -37,14 +49,20 @@ public final class HttpUtil {
                 throw new IOException("URL is not an Http URL");
             }
             httpConn = (HttpURLConnection) urlConn;
-            httpConn.setRequestMethod("POST");
-            httpConn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            httpConn.setRequestMethod(metodo);
+            if (contentType != null) {
+                httpConn.setRequestProperty("Content-Type", contentType);
+            }
+            if (bearer != null) {
+                httpConn.setRequestProperty("Authorization", "Bearer " + bearer);
+            }
             httpConn.setConnectTimeout(10000);
-            httpConn.setReadTimeout(10000);
-            httpConn.setDoOutput(true);
-
-            OutputStream out = httpConn.getOutputStream();
-            writeBody(out, json);
+            httpConn.setReadTimeout(15000);
+            if (corpo != null) {
+                httpConn.setDoOutput(true);
+                OutputStream out = httpConn.getOutputStream();
+                writeBody(out, corpo);
+            }
 
             int resCode = httpConn.getResponseCode();
             InputStream in = (resCode >= 200 && resCode < 300)

@@ -44,6 +44,14 @@
                 android:layout_marginTop="4dp"
                 android:textSize="18sp" />
 
+        <Button
+                android:id="@+id/btnGuardarRota"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/resumo_guardar_rota"
+                android:visibility="gone" />
+
         <TextView
                 android:id="@+id/tvEstadoVideo"
                 android:layout_width="match_parent"
@@ -55,6 +63,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="320dp"
                 android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+        <Button
+                android:id="@+id/btnGuardarVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/resumo_guardar_video"
                 android:visibility="gone" />
 
         <Button

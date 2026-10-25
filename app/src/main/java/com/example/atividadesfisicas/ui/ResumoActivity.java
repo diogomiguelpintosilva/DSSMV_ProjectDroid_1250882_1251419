@@ -1,27 +1,42 @@
 package com.example.atividadesfisicas.ui;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
 import android.widget.Button;
 import android.widget.MediaController;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.VideoView;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.data.AtividadeManager;
+import com.example.atividadesfisicas.data.RotaRepository;
 import com.example.atividadesfisicas.map.MapaHelper;
+import com.example.atividadesfisicas.media.GaleriaHelper;
 import com.example.atividadesfisicas.media.VideoResumoBuilder;
 import com.example.atividadesfisicas.model.Atividade;
+import com.example.atividadesfisicas.model.PontoGPS;
+import com.example.atividadesfisicas.model.Rota;
 import com.example.atividadesfisicas.model.VideoResumo;
 import com.example.atividadesfisicas.util.FormatUtil;
+import com.example.atividadesfisicas.util.GeoUtil;
 
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -32,6 +47,19 @@ public class ResumoActivity extends AppCompatActivity {
     private MapView map;
     private TextView tvEstadoVideo;
     private VideoView videoView;
+    private Button btnGuardarVideo;
+    private String caminhoVideo;
+
+    // Android 9 ou anterior: guardar na galeria exige permissão de escrita
+    private final ActivityResultLauncher<String> permissaoArmazenamentoLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            concedida -> {
+                if (concedida) {
+                    guardarVideoNaGaleria();
+                } else {
+                    Toast.makeText(this, R.string.resumo_permissao_armazenamento, Toast.LENGTH_LONG).show();
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +70,8 @@ public class ResumoActivity extends AppCompatActivity {
         map = findViewById(R.id.map);
         tvEstadoVideo = findViewById(R.id.tvEstadoVideo);
         videoView = findViewById(R.id.videoView);
+        btnGuardarVideo = findViewById(R.id.btnGuardarVideo);
+        btnGuardarVideo.setOnClickListener(v -> aoGuardarVideo());
         Button btnVoltar = findViewById(R.id.btnVoltar);
 
         final Atividade atividade = AtividadeManager.getInstance().getAtual();
@@ -66,7 +96,51 @@ public class ResumoActivity extends AppCompatActivity {
 
         btnVoltar.setOnClickListener(v -> finish());
 
+        configurarGuardarRota(atividade);
+
         prepararVideoResumo(atividade);
+    }
+
+    /** Modo livre: oferece guardar o percurso feito como rota, para o utilizador o poder repetir. */
+    private void configurarGuardarRota(final Atividade atividade) {
+        final Button btnGuardarRota = findViewById(R.id.btnGuardarRota);
+        if (atividade.getRota().getModo() != Rota.Modo.LIVRE) {
+            return;
+        }
+        btnGuardarRota.setVisibility(View.VISIBLE);
+        btnGuardarRota.setOnClickListener(v -> {
+            // sem deslocação (ex.: emulador com localização fixa) não há percurso para guardar
+            if (atividade.getPercurso().size() < 2 || atividade.getDistanciaTotal() < 20) {
+                Toast.makeText(this, R.string.resumo_percurso_curto, Toast.LENGTH_LONG).show();
+                return;
+            }
+            final EditText etNome = new EditText(this);
+            etNome.setHint(R.string.planear_nome_hint);
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.planear_guardar_titulo)
+                    .setView(etNome)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.guardar, (dialog, which) -> {
+                        String nome = etNome.getText().toString().trim();
+                        if (nome.isEmpty()) {
+                            nome = "Rota " + (RotaRepository.listarCriadas(this).size() + 1);
+                        }
+                        guardarRotaLivre(atividade, nome);
+                        btnGuardarRota.setEnabled(false);
+                        btnGuardarRota.setText(R.string.resumo_rota_guardada);
+                    })
+                    .show();
+        });
+    }
+
+    private void guardarRotaLivre(Atividade atividade, String nome) {
+        Rota rota = new Rota("criada_" + System.currentTimeMillis(), nome, Rota.Modo.CRIADA);
+        // menos pontos (um a cada 10 m, no máximo 500) para a rota ficar leve
+        for (PontoGPS p : GeoUtil.simplificar(atividade.getPercurso(), 10, 500)) {
+            rota.adicionarPonto(new PontoGPS(p.getLatitude(), p.getLongitude(), p.getAltitude(), 0));
+        }
+        RotaRepository.guardarCriada(this, rota);
+        Toast.makeText(this, R.string.planear_guardada, Toast.LENGTH_SHORT).show();
     }
 
     private void prepararVideoResumo(final Atividade atividade) {
@@ -108,7 +182,47 @@ public class ResumoActivity extends AppCompatActivity {
         }
     }
 
+    private void aoGuardarVideo() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            permissaoArmazenamentoLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            return;
+        }
+        guardarVideoNaGaleria();
+    }
+
+    /** Copia o vídeo resumo para a galeria (Filmes/WayLine), numa thread de fundo. */
+    private void guardarVideoNaGaleria() {
+        if (caminhoVideo == null) {
+            return;
+        }
+        btnGuardarVideo.setEnabled(false);
+        final File origem = new File(caminhoVideo);
+        final String nome = "WayLine_" + origem.getName();
+        new Thread(() -> {
+            boolean ok = true;
+            try {
+                GaleriaHelper.guardarVideo(getApplicationContext(), origem, nome);
+            } catch (IOException e) {
+                ok = false;
+            }
+            final boolean sucesso = ok;
+            runOnUiThread(() -> {
+                if (sucesso) {
+                    btnGuardarVideo.setText(R.string.resumo_video_guardado_btn);
+                    Toast.makeText(this, R.string.resumo_video_guardado, Toast.LENGTH_LONG).show();
+                } else {
+                    btnGuardarVideo.setEnabled(true);
+                    Toast.makeText(this, R.string.resumo_video_erro_guardar, Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
+    }
+
     private void mostrarVideo(String caminho) {
+        caminhoVideo = caminho;
+        btnGuardarVideo.setVisibility(View.VISIBLE);
         tvEstadoVideo.setText(R.string.resumo_video_pronto);
         videoView.setVisibility(View.VISIBLE);
         videoView.setMediaController(new MediaController(this));

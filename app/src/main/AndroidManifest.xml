@@ -44,7 +44,7 @@
 
         <!-- Ecrã inicial: UC0 Fazer Login -->
         <activity
-                android:name=".ui.LoginActivity"
+                android:name=".ecras.LoginActivity"
                 android:exported="true"
                 android:screenOrientation="portrait">
             <intent-filter>
@@ -55,38 +55,38 @@
         </activity>
 
         <activity
-                android:name=".ui.MenuPrincipalActivity"
+                android:name=".ecras.MenuPrincipalActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
-                android:name=".ui.PlanearRotaActivity"
+                android:name=".ecras.PlanearRotaActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
-                android:name=".ui.EscolherRotaActivity"
+                android:name=".ecras.EscolherRotaActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
-                android:name=".ui.AtividadeActivity"
+                android:name=".ecras.ExercicioActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
-                android:name=".ui.ResumoActivity"
+                android:name=".ecras.ResumoActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
 
         <activity
-                android:name=".ui.HistoricoActivity"
+                android:name=".ecras.HistoricoActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
-                android:name=".ui.HistoricoDetalheActivity"
+                android:name=".ecras.HistoricoDetalheActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
 
         <!-- Serviço de GPS em primeiro plano -->
         <service
-                android:name=".location.LocationService"
+                android:name=".localizacao.ServicoGps"
                 android:exported="false"
                 android:foregroundServiceType="location"/>
 

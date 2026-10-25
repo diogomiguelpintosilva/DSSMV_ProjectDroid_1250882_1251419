@@ -4,24 +4,31 @@ import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.media.AudioAttributes;
 import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import com.example.atividadesfisicas.ui.AtividadeActivity;
 import com.example.atividadesfisicas.util.PermissoesHelper;
 
 /**
- * Vibração e notificações (aviso de desvio da rota e notificação do serviço em primeiro plano).
+ * Vibração e notificações (aviso de desvio da rota, lembretes multimédia e notificação do serviço
+ * em primeiro plano).
  */
 public final class AlertaHelper {
 
     public static final String CANAL_ATIVIDADE = "canal_atividade";
     public static final String CANAL_ALERTAS = "canal_alertas";
+    public static final String CANAL_LEMBRETES = "canal_lembretes";
     public static final int ID_NOTIFICACAO_SERVICO = 1001;
     private static final int ID_NOTIFICACAO_DESVIO = 1002;
+    private static final int ID_NOTIFICACAO_LEMBRETE = 1003;
 
     private AlertaHelper() {
     }
@@ -42,7 +49,20 @@ public final class AlertaHelper {
                     "Alertas de desvio",
                     NotificationManager.IMPORTANCE_HIGH
             ));
+            nm.createNotificationChannel(new NotificationChannel(
+                    CANAL_LEMBRETES,
+                    "Lembretes de foto e vídeo",
+                    NotificationManager.IMPORTANCE_HIGH
+            ));
         }
+    }
+
+    /** Abre o ecrã da atividade em curso ao tocar numa notificação. */
+    private static PendingIntent abrirAtividade(Context ctx) {
+        Intent intent = new Intent(ctx, AtividadeActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return PendingIntent.getActivity(ctx, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     /**
@@ -53,6 +73,7 @@ public final class AlertaHelper {
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setContentTitle("Atividade em curso")
                 .setContentText("A registar o percurso com GPS")
+                .setContentIntent(abrirAtividade(ctx))
                 .setOngoing(true)
                 .build();
     }
@@ -70,16 +91,54 @@ public final class AlertaHelper {
                 .setContentTitle("Desvio da rota")
                 .setContentText("Está a desviar-se da rota pretendida.")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setContentIntent(abrirAtividade(ctx))
                 .setAutoCancel(true)
                 .build();
         NotificationManagerCompat.from(ctx).notify(ID_NOTIFICACAO_DESVIO, n);
     }
 
     /**
-     * Faz o telemóvel vibrar (três pulsos).
+     * Notificação periódica para o utilizador não se esquecer de tirar foto ou gravar vídeo (UC11).
+     */
+    @SuppressLint("MissingPermission")
+    public static void notificarLembrete(Context ctx) {
+        if (!PermissoesHelper.temNotificacoes(ctx)) {
+            return;
+        }
+        Notification n = new NotificationCompat.Builder(ctx, CANAL_LEMBRETES)
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setContentTitle("Não se esqueça de registar o momento!")
+                .setContentText("Tire uma foto ou grave um vídeo para o vídeo resumo da atividade.")
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText("Tire uma foto ou grave um vídeo para o vídeo resumo da atividade."))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setContentIntent(abrirAtividade(ctx))
+                .setAutoCancel(true)
+                .build();
+        NotificationManagerCompat.from(ctx).notify(ID_NOTIFICACAO_LEMBRETE, n);
+    }
+
+    /**
+     * Faz o telemóvel vibrar (três pulsos) quando o utilizador se desvia da rota.
+     */
+    public static void vibrar(Context ctx) {
+        vibrarPadrao(ctx, new long[]{0, 400, 200, 400, 200, 400});
+    }
+
+    /**
+     * Vibração curta (dois pulsos) que acompanha os lembretes multimédia.
+     */
+    public static void vibrarCurto(Context ctx) {
+        vibrarPadrao(ctx, new long[]{0, 250, 150, 250});
+    }
+
+    /**
+     * A vibração é marcada como "alarme" para não ser silenciada pelos modos silencioso/não incomodar.
      */
     @SuppressWarnings("deprecation")
-    public static void vibrar(Context ctx) {
+    private static void vibrarPadrao(Context ctx, long[] padrao) {
         Vibrator vibrator;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             VibratorManager vm = (VibratorManager) ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
@@ -90,9 +149,12 @@ public final class AlertaHelper {
         if (vibrator == null || !vibrator.hasVibrator()) {
             return;
         }
-        long[] padrao = {0, 400, 200, 400, 200, 400};
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(padrao, -1));
+            AudioAttributes atributos = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
+            vibrator.vibrate(VibrationEffect.createWaveform(padrao, -1), atributos);
         } else {
             vibrator.vibrate(padrao, -1);
         }

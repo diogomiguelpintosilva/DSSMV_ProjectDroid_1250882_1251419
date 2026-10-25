@@ -11,6 +11,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import androidx.annotation.NonNull;
@@ -19,6 +20,7 @@ import androidx.core.content.ContextCompat;
 import com.example.atividadesfisicas.data.AtividadeManager;
 import com.example.atividadesfisicas.model.Atividade;
 import com.example.atividadesfisicas.model.AvisoDesvio;
+import com.example.atividadesfisicas.model.LembreteMultimedia;
 import com.example.atividadesfisicas.model.PontoGPS;
 import com.example.atividadesfisicas.model.Rota;
 import com.example.atividadesfisicas.util.Config;
@@ -32,6 +34,24 @@ public class LocationService extends Service {
 
     private LocationManager locationManager;
     private long ultimoAvisoMs = 0;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /** UC11: de X em X tempo lembra o utilizador (notificação + vibração) de tirar foto ou vídeo. */
+    private final Runnable lembrete = new Runnable() {
+        @Override
+        public void run() {
+            AtividadeManager manager = AtividadeManager.getInstance();
+            if (!manager.isAtiva()) {
+                return;
+            }
+            manager.registarLembrete(new LembreteMultimedia(System.currentTimeMillis(),
+                    Config.INTERVALO_LEMBRETE_MS));
+            AlertaHelper.notificarLembrete(LocationService.this);
+            AlertaHelper.vibrarCurto(LocationService.this);
+            handler.postDelayed(this, Config.INTERVALO_LEMBRETE_MS);
+        }
+    };
 
     private final LocationListener listener = new LocationListener() {
         @Override
@@ -88,11 +108,14 @@ public class LocationService extends Service {
         }
         locationManager.removeUpdates(listener);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, Config.GPS_INTERVALO_MS, 0f, listener, Looper.getMainLooper());
+        handler.removeCallbacks(lembrete);
+        handler.postDelayed(lembrete, Config.INTERVALO_LEMBRETE_MS);
         return START_NOT_STICKY;
     }
 
     @Override
     public void onDestroy() {
+        handler.removeCallbacks(lembrete);
         if (locationManager != null) {
             locationManager.removeUpdates(listener);
         }

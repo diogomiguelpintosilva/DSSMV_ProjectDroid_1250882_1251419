@@ -30,6 +30,7 @@ public final class AtividadeManager {
     private PontoGPS ultimoPonto;
     private Telemetria ultimaTelemetria;
     private AvisoDesvio ultimoAviso;
+    private LembreteMultimedia ultimoLembrete;
 
     private AtividadeManager() {
     }
@@ -45,6 +46,7 @@ public final class AtividadeManager {
         ultimoPonto = null;
         ultimaTelemetria = null;
         ultimoAviso = null;
+        ultimoLembrete = null;
         ativa = true;
     }
 
@@ -139,7 +141,12 @@ public final class AtividadeManager {
     public synchronized void registarLembrete(LembreteMultimedia lembrete) {
         if (atual != null) {
             atual.getLembretes().add(lembrete);
+            ultimoLembrete = lembrete;
         }
+    }
+
+    public synchronized LembreteMultimedia getUltimoLembrete() {
+        return ultimoLembrete;
     }
 
     public synchronized void adicionarMultimedia(Multimedia multimedia) {

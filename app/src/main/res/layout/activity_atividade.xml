@@ -109,8 +109,26 @@
 
         </LinearLayout>
 
-        <!-- Linha dos Botões de Ação -->
+        <!-- Estado de preparação: mensagem sobre o modo escolhido e botão para começar -->
+        <TextView
+                android:id="@+id/tvInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textColor="#333333"
+                android:textSize="15sp" />
+
+        <Button
+                android:id="@+id/btnIniciar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/atividade_iniciar" />
+
+        <!-- Linha dos Botões de Ação (só visível com a atividade em curso) -->
         <LinearLayout
+                android:id="@+id/linhaAcoes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"

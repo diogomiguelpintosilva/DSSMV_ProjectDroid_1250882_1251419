@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -17,11 +18,13 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.data.AtividadeManager;
+import com.example.atividadesfisicas.data.HistoricoRepository;
 import com.example.atividadesfisicas.data.RotaRepository;
 import com.example.atividadesfisicas.location.LocationService;
 import com.example.atividadesfisicas.map.MapaHelper;
@@ -35,14 +38,13 @@ import com.example.atividadesfisicas.model.Rota;
 import com.example.atividadesfisicas.model.Telemetria;
 import com.example.atividadesfisicas.model.Video;
 import com.example.atividadesfisicas.model.VideoComTelemetria;
-import com.example.atividadesfisicas.util.Config;
 import com.example.atividadesfisicas.util.FormatUtil;
 import com.example.atividadesfisicas.util.PermissoesHelper;
 
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polyline;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,10 +53,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ecrã principal durante a corrida/caminhada.
+ * Ecrã da corrida/caminhada.
  * UC2 Iniciar atividade, UC3/UC4/UC5 (modos de rota), UC6 Consultar telemetria, UC7 Tirar foto,
  * UC8 Gravar vídeo com telemetria, UC9 Terminar atividade, UC10 Alerta de desvio, UC11 Lembrete multimédia.
  *
+ * Tem dois estados: preparação (mostra o mapa, a rota escolhida e a posição do utilizador, com o botão
+ * "Iniciar atividade") e atividade em curso (telemetria, fotos, vídeos e "Terminar").
  * O ecrã atualiza-se a cada segundo com um Handler (aula T4) a partir do AtividadeManager.
  */
 public class AtividadeActivity extends AppCompatActivity {
@@ -74,13 +78,16 @@ public class AtividadeActivity extends AppCompatActivity {
     private TextView tvVelocidade;
     private TextView tvAltitude;
     private TextView tvBanner;
+    private TextView tvInfo;
+    private Button btnIniciar;
+    private View linhaAcoes;
 
     private Rota rota;
     private Polyline linhaPercurso;
-    private Marker marcadorAtual;
-    private boolean marcadorNoMapa = false;
+    private MyLocationNewOverlay minhaLocalizacao;
+    private boolean mapaPreparado = false;
 
-    private long ultimoLembreteMs = 0;
+    private long ultimoLembreteMostrado = 0;
     private long ultimoAvisoMostrado = 0;
 
     // capturas em processamento (fotos/vídeos): não deixa terminar até acabarem
@@ -88,11 +95,24 @@ public class AtividadeActivity extends AppCompatActivity {
     private File ficheiroPendente;
     private Telemetria telemetriaPendente;
 
+    /** Pede ao Android a gravação de vídeo na qualidade máxima (por omissão pode ser baixa). */
+    private static class CapturarVideoQualidadeMaxima extends ActivityResultContracts.CaptureVideo {
+        @NonNull
+        @Override
+        public Intent createIntent(@NonNull Context context, @NonNull Uri input) {
+            Intent intent = super.createIntent(context, input);
+            intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+            return intent;
+        }
+    }
+
     private final ActivityResultLauncher<String[]> permissoesLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
             (Map<String, Boolean> resultado) -> {
                 if (PermissoesHelper.temLocalizacao(this)) {
-                    iniciarAtividade();
+                    if (!mapaPreparado) {
+                        prepararMapa();
+                    }
                 } else {
                     Toast.makeText(this, R.string.permissao_localizacao_necessaria, Toast.LENGTH_LONG).show();
                     finish();
@@ -103,7 +123,7 @@ public class AtividadeActivity extends AppCompatActivity {
             new ActivityResultContracts.TakePicture(), sucesso -> aoFotoTirada(sucesso));
 
     private final ActivityResultLauncher<Uri> videoLauncher = registerForActivityResult(
-            new ActivityResultContracts.CaptureVideo(), sucesso -> aoVideoGravado(sucesso));
+            new CapturarVideoQualidadeMaxima(), sucesso -> aoVideoGravado(sucesso));
 
     private final Runnable esconderBanner = new Runnable() {
         @Override
@@ -131,28 +151,42 @@ public class AtividadeActivity extends AppCompatActivity {
         tvVelocidade = findViewById(R.id.tvVelocidade);
         tvAltitude = findViewById(R.id.tvAltitude);
         tvBanner = findViewById(R.id.tvBanner);
+        tvInfo = findViewById(R.id.tvInfo);
+        btnIniciar = findViewById(R.id.btnIniciar);
+        linhaAcoes = findViewById(R.id.linhaAcoes);
         Button btnFoto = findViewById(R.id.btnFoto);
         Button btnVideo = findViewById(R.id.btnVideo);
         Button btnTerminar = findViewById(R.id.btnTerminar);
 
         MapaHelper.configurar(map, 17.0);
 
-        // o botão "Voltar" não sai da atividade: é preciso usar "Terminar atividade"
+        // durante a atividade o botão "Voltar" não sai: é preciso usar "Terminar atividade"
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                Toast.makeText(AtividadeActivity.this, R.string.atividade_usar_terminar,
-                        Toast.LENGTH_SHORT).show();
+                if (manager.isAtiva()) {
+                    Toast.makeText(AtividadeActivity.this, R.string.atividade_usar_terminar,
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    finish();
+                }
             }
         });
 
+        btnIniciar.setOnClickListener(v -> iniciarAtividade());
         btnFoto.setOnClickListener(v -> tirarFoto());
         btnVideo.setOnClickListener(v -> gravarVideo());
         btnTerminar.setOnClickListener(v -> terminarAtividade());
 
+        LembreteMultimedia ultimoLembrete = manager.getUltimoLembrete();
+        if (ultimoLembrete != null) {
+            ultimoLembreteMostrado = ultimoLembrete.getInstante();
+        }
+
         if (manager.isAtiva()) {
             // voltou a um ecrã de uma atividade já em curso
             rota = manager.getAtual().getRota();
+            mostrarModoAtividade();
             prepararMapa();
         } else {
             rota = resolverRota();
@@ -161,8 +195,9 @@ public class AtividadeActivity extends AppCompatActivity {
                 finish();
                 return;
             }
-            if (PermissoesHelper.temLocalizacao(this)) {
-                iniciarAtividade();
+            mostrarModoPreparacao();
+            if (PermissoesHelper.temLocalizacao(this) && PermissoesHelper.temNotificacoes(this)) {
+                prepararMapa();
             } else {
                 permissoesLauncher.launch(PermissoesHelper.permissoesPedidas());
             }
@@ -182,22 +217,53 @@ public class AtividadeActivity extends AppCompatActivity {
         return RotaRepository.procurar(this, modo, getIntent().getStringExtra(EXTRA_ROTA_ID));
     }
 
-    /** UC2: arranca o registo da atividade e o serviço de GPS. */
+    /** Estado antes de começar: botão "Iniciar atividade" e mensagem sobre o modo escolhido. */
+    private void mostrarModoPreparacao() {
+        btnIniciar.setVisibility(View.VISIBLE);
+        linhaAcoes.setVisibility(View.GONE);
+        tvInfo.setVisibility(View.VISIBLE);
+        if (rota.getModo() == Rota.Modo.LIVRE) {
+            tvInfo.setText(R.string.atividade_preparar_livre);
+        } else {
+            tvInfo.setText(getString(R.string.atividade_preparar_rota, rota.getNome()));
+        }
+    }
+
+    /** Estado com a atividade a decorrer: fotos, vídeos e "Terminar". */
+    private void mostrarModoAtividade() {
+        btnIniciar.setVisibility(View.GONE);
+        linhaAcoes.setVisibility(View.VISIBLE);
+        tvInfo.setVisibility(View.GONE);
+    }
+
+    /** UC2: arranca o registo da atividade e o serviço de GPS (ao carregar em "Iniciar atividade"). */
     private void iniciarAtividade() {
+        if (manager.isAtiva()) {
+            return;
+        }
+        if (!PermissoesHelper.temLocalizacao(this)) {
+            permissoesLauncher.launch(PermissoesHelper.permissoesPedidas());
+            return;
+        }
+        if (!mapaPreparado) {
+            prepararMapa();
+        }
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (lm != null && !lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             Toast.makeText(this, R.string.atividade_ativar_gps, Toast.LENGTH_LONG).show();
         }
         manager.iniciar(rota);
         LocationService.iniciar(this);
-        prepararMapa();
+        mostrarModoAtividade();
+        if (minhaLocalizacao != null) {
+            minhaLocalizacao.enableFollowLocation();
+        }
         handler.removeCallbacks(tick);
         handler.post(tick);
     }
 
     private void prepararMapa() {
         map.getOverlays().clear();
-        marcadorNoMapa = false;
 
         if (rota.getModo() != Rota.Modo.LIVRE && !rota.getPontos().isEmpty()) {
             List<GeoPoint> planeada = MapaHelper.paraGeoPoints(rota.getPontos());
@@ -213,13 +279,19 @@ public class AtividadeActivity extends AppCompatActivity {
         linhaPercurso = MapaHelper.criarLinha(new ArrayList<GeoPoint>(), COR_PERCURSO, 10f);
         map.getOverlays().add(linhaPercurso);
 
-        marcadorAtual = new Marker(map);
-        marcadorAtual.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
-        marcadorAtual.setTitle(getString(R.string.atividade_posicao_atual));
+        // ícone da posição do utilizador: fica sempre visível e acompanha-o durante a atividade;
+        // nas rotas, antes de começar, o mapa mostra a rota inteira em vez de seguir o utilizador
+        boolean seguir = manager.isAtiva() || rota.getModo() == Rota.Modo.LIVRE;
+        minhaLocalizacao = MapaHelper.adicionarMinhaLocalizacao(this, map, seguir);
+        mapaPreparado = true;
+        map.invalidate();
     }
 
-    /** Corre a cada segundo: telemetria (UC6), mapa, lembretes (UC11) e avisos de desvio (UC10). */
+    /** Corre a cada segundo: telemetria (UC6), percurso, lembretes (UC11) e avisos de desvio (UC10). */
     private void atualizarEcra() {
+        if (!manager.isAtiva() || linhaPercurso == null) {
+            return;
+        }
         long tempoMs = manager.getTempoDecorridoMs();
         tvTempo.setText(FormatUtil.formatarTempo(tempoMs));
 
@@ -231,23 +303,14 @@ public class AtividadeActivity extends AppCompatActivity {
 
         List<PontoGPS> percurso = manager.copiaPercurso();
         if (!percurso.isEmpty()) {
-            List<GeoPoint> pontos = MapaHelper.paraGeoPoints(percurso);
-            linhaPercurso.setPoints(pontos);
-            GeoPoint ultimo = pontos.get(pontos.size() - 1);
-            if (!marcadorNoMapa) {
-                map.getOverlays().add(marcadorAtual);
-                marcadorNoMapa = true;
-            }
-            marcadorAtual.setPosition(ultimo);
-            MapaHelper.centrar(map, ultimo);
+            linhaPercurso.setPoints(MapaHelper.paraGeoPoints(percurso));
             map.invalidate();
         }
 
-        // UC11: lembrete de X em X tempo
-        if (tempoMs - ultimoLembreteMs >= Config.INTERVALO_LEMBRETE_MS) {
-            ultimoLembreteMs = tempoMs;
-            manager.registarLembrete(new LembreteMultimedia(System.currentTimeMillis(),
-                    Config.INTERVALO_LEMBRETE_MS));
+        // UC11: o lembrete (notificação + vibração) é emitido pelo LocationService; aqui só se mostra o banner
+        LembreteMultimedia lembrete = manager.getUltimoLembrete();
+        if (lembrete != null && lembrete.getInstante() > ultimoLembreteMostrado) {
+            ultimoLembreteMostrado = lembrete.getInstante();
             mostrarBanner(getString(R.string.atividade_lembrete), 6000, 0xFF1565C0);
         }
 
@@ -388,6 +451,8 @@ public class AtividadeActivity extends AppCompatActivity {
         handler.removeCallbacks(tick);
         LocationService.parar(this);
         manager.terminar();
+        // guarda a atividade no histórico (local e na cloud)
+        HistoricoRepository.guardar(getApplicationContext(), manager.getAtual());
         startActivity(new Intent(this, ResumoActivity.class));
         finish();
     }
@@ -420,6 +485,9 @@ public class AtividadeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         map.onResume();
+        if (minhaLocalizacao != null) {
+            minhaLocalizacao.enableMyLocation();
+        }
         if (manager.isAtiva() && linhaPercurso != null) {
             handler.removeCallbacks(tick);
             handler.post(tick);
@@ -430,6 +498,9 @@ public class AtividadeActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         map.onPause();
+        if (minhaLocalizacao != null) {
+            minhaLocalizacao.disableMyLocation();
+        }
         handler.removeCallbacks(tick);
     }
 

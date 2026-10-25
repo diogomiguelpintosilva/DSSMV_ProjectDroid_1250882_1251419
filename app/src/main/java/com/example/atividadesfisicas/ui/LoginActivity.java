@@ -14,6 +14,7 @@ import com.example.atividadesfisicas.auth.AuthApi;
 import com.example.atividadesfisicas.auth.AuthException;
 import com.example.atividadesfisicas.auth.LoginResponseDTO;
 import com.example.atividadesfisicas.auth.Sessao;
+import com.example.atividadesfisicas.data.SincronizacaoCloud;
 import com.example.atividadesfisicas.model.Utilizador;
 
 /**
@@ -67,6 +68,10 @@ public class LoginActivity extends AppCompatActivity {
                         public void run() {
                             Sessao.getInstance().setUtilizador(
                                     new Utilizador(resposta.getEmail(), resposta.getUid()));
+                            Sessao.getInstance().setTokens(resposta.getIdToken(),
+                                    resposta.getRefreshToken(), resposta.getExpiresInSegundos());
+                            // traz as rotas e o histórico da conta (e envia o que ficou só no telemóvel)
+                            SincronizacaoCloud.sincronizar(LoginActivity.this, null);
                             startActivity(new Intent(LoginActivity.this, MenuPrincipalActivity.class));
                             finish();
                         }

@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.auth.Sessao;
+import com.example.atividadesfisicas.data.SincronizacaoCloud;
 import com.example.atividadesfisicas.data.AtividadeManager;
 import com.example.atividadesfisicas.model.Rota;
 import com.example.atividadesfisicas.util.PermissoesHelper;
@@ -44,6 +45,10 @@ public class MenuPrincipalActivity extends AppCompatActivity {
         Button btnPredefinida = findViewById(R.id.btnRotaPredefinida);
         Button btnCriada = findViewById(R.id.btnRotaCriada);
         Button btnLivre = findViewById(R.id.btnModoLivre);
+        Button btnHistorico = findViewById(R.id.btnHistorico);
+        btnHistorico.setOnClickListener(v ->
+                startActivity(new Intent(this, HistoricoActivity.class)));
+        SincronizacaoCloud.sincronizar(this, null);
 
         btnPlanear.setOnClickListener(v ->
                 startActivity(new Intent(this, PlanearRotaActivity.class)));

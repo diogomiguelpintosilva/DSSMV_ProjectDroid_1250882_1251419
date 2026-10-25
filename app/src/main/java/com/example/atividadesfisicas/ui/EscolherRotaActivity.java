@@ -6,10 +6,12 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.data.RotaRepository;
+import com.example.atividadesfisicas.data.SincronizacaoCloud;
 import com.example.atividadesfisicas.model.Rota;
 
 import java.util.List;
@@ -43,6 +45,11 @@ public class EscolherRotaActivity extends AppCompatActivity {
             rotas = RotaRepository.listarCriadas(this);
         }
 
+        final TextView tvDica = findViewById(R.id.tvDica);
+        if (modo == Rota.Modo.CRIADA && !rotas.isEmpty()) {
+            tvDica.setVisibility(android.view.View.VISIBLE);
+        }
+
         if (rotas.isEmpty()) {
             tvVazio.setVisibility(android.view.View.VISIBLE);
         }
@@ -50,6 +57,47 @@ public class EscolherRotaActivity extends AppCompatActivity {
         final ArrayAdapter<Rota> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_list_item_1, rotas);
         lvRotas.setAdapter(adapter);
+
+        if (modo == Rota.Modo.CRIADA) {
+            // rotas guardadas noutro dispositivo com a mesma conta
+            SincronizacaoCloud.sincronizar(this, () -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                adapter.clear();
+                adapter.addAll(RotaRepository.listarCriadas(this));
+                adapter.notifyDataSetChanged();
+                tvVazio.setVisibility(adapter.isEmpty()
+                        ? android.view.View.VISIBLE : android.view.View.GONE);
+                tvDica.setVisibility(adapter.isEmpty()
+                        ? android.view.View.GONE : android.view.View.VISIBLE);
+            });
+
+            // manter premido numa rota criada permite apagá-la (as predefinidas não se apagam)
+            lvRotas.setOnItemLongClickListener((parent, view, position, id) -> {
+                final Rota alvo = adapter.getItem(position);
+                if (alvo == null) {
+                    return true;
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle(R.string.escolher_apagar_titulo)
+                        .setMessage(getString(R.string.escolher_apagar_mensagem, alvo.getNome()))
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .setPositiveButton(R.string.escolher_apagar, (dialog, which) -> {
+                            RotaRepository.apagarCriada(this, alvo.getId());
+                            adapter.remove(alvo);
+                            adapter.notifyDataSetChanged();
+                            if (adapter.isEmpty()) {
+                                tvVazio.setVisibility(android.view.View.VISIBLE);
+                                tvDica.setVisibility(android.view.View.GONE);
+                            }
+                            android.widget.Toast.makeText(this, R.string.escolher_apagada,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        })
+                        .show();
+                return true;
+            });
+        }
 
         lvRotas.setOnItemClickListener((parent, view, position, id) -> {
             Rota escolhida = adapter.getItem(position);

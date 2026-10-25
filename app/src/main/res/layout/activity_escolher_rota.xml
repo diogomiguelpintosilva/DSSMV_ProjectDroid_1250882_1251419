@@ -15,6 +15,15 @@
             android:textStyle="bold" />
 
     <TextView
+            android:id="@+id/tvDica"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/escolher_dica_apagar"
+            android:textColor="#666666"
+            android:visibility="gone" />
+
+    <TextView
             android:id="@+id/tvVazio"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

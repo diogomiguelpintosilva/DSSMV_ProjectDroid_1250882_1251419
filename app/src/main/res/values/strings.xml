@@ -64,4 +64,38 @@
     <string name="resumo_erro_video">Não foi possível gerar o vídeo resumo.</string>
     <string name="resumo_video_pronto">Vídeo resumo da atividade:</string>
     <string name="resumo_voltar">Voltar ao menu</string>
+
+    <!-- Menu: histórico -->
+    <string name="menu_historico">Histórico de Atividade</string>
+
+    <!-- Atividade: preparação -->
+    <string name="atividade_iniciar">Iniciar atividade</string>
+    <string name="atividade_preparar_livre">Modo livre: o percurso é desenhado à medida que se desloca. Carregue em Iniciar quando estiver pronto.</string>
+    <string name="atividade_preparar_rota">Rota: %1$s. Carregue em Iniciar quando estiver pronto.</string>
+
+    <!-- Resumo: guardar rota livre -->
+    <string name="resumo_guardar_rota">Guardar Rota</string>
+    <string name="resumo_rota_guardada">Rota guardada</string>
+
+    <!-- Histórico -->
+    <string name="historico_titulo">Histórico de Atividade</string>
+    <string name="historico_vazio">Ainda não há atividades registadas.</string>
+    <string name="historico_avisos">Avisos de desvio: %1$d</string>
+    <string name="historico_capturas">Fotos: %1$d · Vídeos: %2$d</string>
+    <string name="historico_rota">Rota: %1$s</string>
+
+    <!-- Apagar rotas criadas / percurso curto -->
+    <string name="escolher_dica_apagar">Mantenha premida uma rota para a apagar.</string>
+    <string name="escolher_apagar_titulo">Apagar rota</string>
+    <string name="escolher_apagar_mensagem">Quer apagar a rota \"%1$s\"?</string>
+    <string name="escolher_apagar">Apagar</string>
+    <string name="escolher_apagada">Rota apagada.</string>
+    <string name="resumo_percurso_curto">Não há percurso para guardar: é preciso deslocar-se pelo menos 20 metros.</string>
+
+    <!-- Guardar vídeo resumo na galeria -->
+    <string name="resumo_guardar_video">Guardar vídeo na galeria</string>
+    <string name="resumo_video_guardado_btn">Vídeo guardado</string>
+    <string name="resumo_video_guardado">Vídeo guardado na galeria (Filmes/WayLine).</string>
+    <string name="resumo_video_erro_guardar">Não foi possível guardar o vídeo.</string>
+    <string name="resumo_permissao_armazenamento">É preciso permitir o acesso ao armazenamento para guardar o vídeo.</string>
 </resources>

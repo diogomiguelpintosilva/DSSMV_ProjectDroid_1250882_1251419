@@ -84,6 +84,7 @@ public final class VideoOverlayProcessor {
                 .build();
         final Transformer[] referencia = new Transformer[1];
         Transformer transformer = new Transformer.Builder(ctx.getApplicationContext())
+                .setEncoderFactory(QualidadeVideo.codificador(ctx))
                 .addListener(new Transformer.Listener() {
                     @Override
                     public void onCompleted(Composition composition, ExportResult exportResult) {

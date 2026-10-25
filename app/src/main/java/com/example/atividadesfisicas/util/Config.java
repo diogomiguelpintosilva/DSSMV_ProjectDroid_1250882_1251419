@@ -25,7 +25,7 @@ public final class Config {
     public static final long COOLDOWN_AVISO_DESVIO_MS = 15000L;
 
     /** Intervalo "X em X tempo" entre lembretes para tirar fotos/vídeos (para testar, pôr 30000L). */
-    public static final long INTERVALO_LEMBRETE_MS = 5 * 60 * 1000L;
+    public static final long INTERVALO_LEMBRETE_MS = 2 * 60 * 1000L;
 
     /** Intervalo pedido ao GPS. */
     public static final long GPS_INTERVALO_MS = 1000L;
@@ -38,4 +38,13 @@ public final class Config {
 
     /** Tempo que cada foto fica no vídeo resumo. */
     public static final long DURACAO_FOTO_NO_RESUMO_MS = 3000L;
+
+    /** Id do projeto Firebase (Firestore). Está no google-services.json (project_id). */
+    public static final String FIREBASE_PROJECT_ID = "wayline-bd8ac";
+
+    /** Débito (bits/s) do vídeo exportado; valores baixos fazem o vídeo ficar pixelado. */
+    public static final int VIDEO_BITRATE = 10_000_000;
+
+    /** Lado maior (em pixéis) das fotos com métricas; 4096 mantém a resolução total da maioria das câmaras. */
+    public static final int FOTO_LADO_MAXIMO = 4096;
 }

@@ -30,8 +30,8 @@ import java.util.List;
  */
 @OptIn(markerClass = UnstableApi.class)
 public final class VideoResumoBuilder {
-    private static final int LARGURA = 720;
-    private static final int ALTURA = 1280;
+    private static final int LARGURA = 1080;
+    private static final int ALTURA = 1920;
     public interface Listener {
         void onConcluido(long duracaoMs);
         void onErro(Exception e);
@@ -99,6 +99,7 @@ public final class VideoResumoBuilder {
         final Transformer[] referencia = new Transformer[1];
         Transformer transformer = new
                 Transformer.Builder(ctx.getApplicationContext())
+                .setEncoderFactory(QualidadeVideo.codificador(ctx))
                 .addListener(new Transformer.Listener() {
                     @Override
                     public void onCompleted(Composition composition,

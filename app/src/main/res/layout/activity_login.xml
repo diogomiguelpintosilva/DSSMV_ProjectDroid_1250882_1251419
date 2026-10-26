@@ -39,11 +39,26 @@
             android:layout_marginTop="12dp"
             android:textColor="#D32F2F" />
 
+    <TextView
+            android:id="@+id/tvSucesso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="#2E7D32" />
+
     <Button
             android:id="@+id/btnLogin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/login_entrar" />
+
+    <Button
+            android:id="@+id/btnCriarConta"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/login_criar_conta" />
 
 </LinearLayout>

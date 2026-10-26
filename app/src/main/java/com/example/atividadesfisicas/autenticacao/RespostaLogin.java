@@ -3,7 +3,7 @@ package com.example.atividadesfisicas.autenticacao;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** DTO recebido da API de autenticação. */
+/** Resposta do Firebase ao login e à criação de conta: uid, email e tokens (DTO). */
 public class RespostaLogin {
 
     private final String uid;

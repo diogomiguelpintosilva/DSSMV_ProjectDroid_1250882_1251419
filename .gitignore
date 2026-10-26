@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Configuração do Firebase (não é usada: a app fala com o Firebase por REST)
+google-services.json

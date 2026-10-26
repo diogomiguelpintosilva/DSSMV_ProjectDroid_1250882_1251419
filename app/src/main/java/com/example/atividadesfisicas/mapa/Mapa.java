@@ -6,12 +6,13 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.location.Location;
 import android.location.LocationManager;
+
 import com.example.atividadesfisicas.modelo.PontoGPS;
 import com.example.atividadesfisicas.utilitarios.Config;
 import com.example.atividadesfisicas.utilitarios.Permissoes;
+
 import org.osmdroid.config.Configuration;
 import org.osmdroid.config.IConfigurationProvider;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -21,6 +22,7 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,13 @@ import java.util.List;
  */
 public final class Mapa {
 
+    /** Cor da rota planeada (azul). */
+    public static final int COR_ROTA_PLANEADA = 0xFF1565C0;
+    /** Cor do percurso feito (vermelho). */
+    public static final int COR_PERCURSO = 0xFFD32F2F;
+    /** Cor do ícone do utilizador (roxo), diferente das duas linhas. */
+    private static final int COR_UTILIZADOR = 0xFFAA00FF;
+
     /** Centro do mapa enquanto não há posição do utilizador (Porto / Vila Nova de Gaia). */
     private static final GeoPoint LOCAL_POR_OMISSAO = new GeoPoint(41.1400, -8.6130);
 
@@ -38,82 +47,60 @@ public final class Mapa {
     }
 
     /**
-     * Chamar ANTES de setContentView em qualquer ecrã com mapa.
+     * Configuração geral do osmdroid. Chamar ANTES de setContentView em qualquer ecrã com mapa.
      */
     public static void inicializar(Context ctx) {
-        IConfigurationProvider cfg = Configuration.getInstance();
-        cfg.setUserAgentValue(Config.USER_AGENT_MAPA);
+        IConfigurationProvider configuracao = Configuration.getInstance();
+        configuracao.setUserAgentValue(Config.USER_AGENT_MAPA);
         File base = new File(ctx.getCacheDir(), "osmdroid");
-        cfg.setOsmdroidBasePath(base);
-        cfg.setOsmdroidTileCache(new File(base, "tiles"));
+        configuracao.setOsmdroidBasePath(base);
+        configuracao.setOsmdroidTileCache(new File(base, "tiles"));
     }
 
-    public static void configurar(MapView map, double zoom) {
-        map.setTileSource(TileSourceFactory.MAPNIK);
-        map.setMultiTouchControls(true);
-        map.getController().setZoom(zoom);
+    /** Estilo do mapa, zoom com dois dedos, zoom inicial e centro inicial. */
+    public static void configurar(MapView mapa, double zoom) {
+        mapa.setTileSource(TileSourceFactory.MAPNIK);
+        mapa.setMultiTouchControls(true);
+        mapa.getController().setZoom(zoom);
         // sem isto o mapa abre em (0,0); começa no Porto/Gaia até haver posição do utilizador
-        map.getController().setCenter(LOCAL_POR_OMISSAO);
+        mapa.getController().setCenter(LOCAL_POR_OMISSAO);
     }
 
     /**
      * Acrescenta ao mapa o ícone da posição do utilizador, que o acompanha enquanto se desloca.
-     * Se seguir=true, o mapa fica centrado no utilizador (deixa de seguir se tocar/arrastar o mapa).
+     * Se seguir=true, o mapa fica centrado no utilizador (deixa de seguir se o utilizador arrastar o mapa).
      * Chamar disableMyLocation() em onPause e enableMyLocation() em onResume.
      */
-    public static MyLocationNewOverlay adicionarMinhaLocalizacao(Context ctx, MapView map, boolean seguir) {
-        MyLocationNewOverlay overlay = new MyLocationNewOverlay(new GpsMyLocationProvider(ctx), map);
-        // ícones próprios (roxo com contorno branco) para se distinguirem do mapa e das linhas das rotas
-        Bitmap ponto = criarIconeUtilizador(ctx, false);
-        Bitmap seta = criarIconeUtilizador(ctx, true);
-        overlay.setDirectionArrow(ponto, seta);
-        overlay.setPersonHotspot(ponto.getWidth() / 2f, ponto.getHeight() / 2f);
-        overlay.enableMyLocation();
+    public static MyLocationNewOverlay adicionarMinhaLocalizacao(Context ctx, MapView mapa, boolean seguir) {
+        MyLocationNewOverlay camada = new MyLocationNewOverlay(new GpsMyLocationProvider(ctx), mapa);
+        // ícone próprio (roxo) para se distinguir do mapa e das linhas das rotas; é o mesmo parado e em movimento
+        Bitmap ponto = criarIconeUtilizador(ctx);
+        camada.setDirectionArrow(ponto, ponto);
+        camada.setPersonHotspot(ponto.getWidth() / 2f, ponto.getHeight() / 2f);
+        camada.enableMyLocation();
         if (seguir) {
-            overlay.enableFollowLocation();
+            camada.enableFollowLocation();
         }
-        map.getOverlays().add(overlay);
-        return overlay;
+        mapa.getOverlays().add(camada);
+        return camada;
     }
 
-    private static final int COR_UTILIZADOR = 0xFFAA00FF;
-
-    /**
-     * Desenha o ícone da posição do utilizador: um ponto roxo com halo (parado) ou uma seta roxa
-     * (em movimento). Os dois têm contorno branco.
-     */
-    private static Bitmap criarIconeUtilizador(Context ctx, boolean seta) {
-        float d = ctx.getResources().getDisplayMetrics().density;
-        int tam = Math.round(44 * d);
-        Bitmap bmp = Bitmap.createBitmap(tam, tam, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bmp);
+    /** Desenha o ícone da posição do utilizador: um ponto roxo com contorno branco e um halo transparente. */
+    private static Bitmap criarIconeUtilizador(Context ctx) {
+        float densidade = ctx.getResources().getDisplayMetrics().density;
+        int tamanho = Math.round(44 * densidade);
+        Bitmap imagem = Bitmap.createBitmap(tamanho, tamanho, Bitmap.Config.ARGB_8888);
+        Canvas tela = new Canvas(imagem);
         Paint tinta = new Paint(Paint.ANTI_ALIAS_FLAG);
-        float cx = tam / 2f;
-        float cy = tam / 2f;
-        if (!seta) {
-            tinta.setColor((COR_UTILIZADOR & 0x00FFFFFF) | 0x55000000);
-            canvas.drawCircle(cx, cy, tam / 2f, tinta);
-            tinta.setColor(Color.WHITE);
-            canvas.drawCircle(cx, cy, tam * 0.30f, tinta);
-            tinta.setColor(COR_UTILIZADOR);
-            canvas.drawCircle(cx, cy, tam * 0.22f, tinta);
-        } else {
-            Path caminho = new Path();
-            caminho.moveTo(cx, tam * 0.06f);
-            caminho.lineTo(tam * 0.84f, tam * 0.90f);
-            caminho.lineTo(cx, tam * 0.70f);
-            caminho.lineTo(tam * 0.16f, tam * 0.90f);
-            caminho.close();
-            tinta.setStyle(Paint.Style.STROKE);
-            tinta.setStrokeWidth(4 * d);
-            tinta.setStrokeJoin(Paint.Join.ROUND);
-            tinta.setColor(Color.WHITE);
-            canvas.drawPath(caminho, tinta);
-            tinta.setStyle(Paint.Style.FILL);
-            tinta.setColor(COR_UTILIZADOR);
-            canvas.drawPath(caminho, tinta);
-        }
-        return bmp;
+        float centro = tamanho / 2f;
+
+        tinta.setColor((COR_UTILIZADOR & 0x00FFFFFF) | 0x55000000); // a mesma cor, semitransparente
+        tela.drawCircle(centro, centro, tamanho / 2f, tinta);
+        tinta.setColor(Color.WHITE);
+        tela.drawCircle(centro, centro, tamanho * 0.30f, tinta);
+        tinta.setColor(COR_UTILIZADOR);
+        tela.drawCircle(centro, centro, tamanho * 0.22f, tinta);
+        return imagem;
     }
 
     public static GeoPoint paraGeoPoint(PontoGPS p) {
@@ -128,6 +115,7 @@ public final class Mapa {
         return lista;
     }
 
+    /** Linha que passa pelos pontos, com a cor e a espessura pedidas. */
     public static Polyline criarLinha(List<GeoPoint> pontos, int cor, float largura) {
         Polyline linha = new Polyline();
         linha.setPoints(pontos);
@@ -136,43 +124,39 @@ public final class Mapa {
         return linha;
     }
 
-    public static void centrar(MapView map, GeoPoint ponto) {
-        map.getController().setCenter(ponto);
+    public static void centrar(MapView mapa, GeoPoint ponto) {
+        mapa.getController().setCenter(ponto);
     }
 
     /**
-     * Ajusta o zoom para mostrar todos os pontos (precisa de pelo menos 2).
+     * Ajusta o zoom para mostrar todos os pontos (com um só ponto, centra nele).
      */
-    public static void ajustarAosPontos(final MapView map, final List<GeoPoint> pontos) {
+    public static void ajustarAosPontos(final MapView mapa, final List<GeoPoint> pontos) {
         if (pontos.size() < 2) {
             if (pontos.size() == 1) {
-                centrar(map, pontos.get(0));
+                centrar(mapa, pontos.get(0));
             }
             return;
         }
-        map.post(new Runnable() {
-            @Override
-            public void run() {
-                map.zoomToBoundingBox(BoundingBox.fromGeoPoints(pontos), false, 80);
-            }
-        });
+        // post: o mapa só sabe o seu tamanho depois de ser desenhado pela primeira vez
+        mapa.post(() -> mapa.zoomToBoundingBox(BoundingBox.fromGeoPoints(pontos), false, 80));
     }
 
     /**
-     * Última posição conhecida (ou null se não houver permissão/posição).
+     * Última posição conhecida do telemóvel (ou null se não houver permissão ou posição).
      */
     @SuppressLint("MissingPermission")
     public static GeoPoint ultimaPosicaoConhecida(Context ctx) {
         if (!Permissoes.temLocalizacao(ctx)) {
             return null;
         }
-        LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-        if (lm == null) {
+        LocationManager gestorLocalizacao = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+        if (gestorLocalizacao == null) {
             return null;
         }
         Location melhor = null;
-        for (String provider : lm.getProviders(true)) {
-            Location l = lm.getLastKnownLocation(provider);
+        for (String fornecedor : gestorLocalizacao.getProviders(true)) {
+            Location l = gestorLocalizacao.getLastKnownLocation(fornecedor);
             if (l != null && (melhor == null || l.getAccuracy() < melhor.getAccuracy())) {
                 melhor = l;
             }

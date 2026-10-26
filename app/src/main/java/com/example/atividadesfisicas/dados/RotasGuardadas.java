@@ -13,32 +13,34 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Guarda e lê as rotas criadas previamente. Ficam em SharedPreferences (em JSON), separadas por conta,
- * e são sincronizadas com o Firestore para estarem disponíveis noutro dispositivo com a mesma conta.
+ * UC1 e UC4: as rotas criadas pelo utilizador. Ficam no telemóvel (SharedPreferences, em JSON),
+ * separadas por conta, e são sincronizadas com o Firestore para estarem disponíveis
+ * noutro dispositivo com a mesma conta.
  */
 public final class RotasGuardadas {
 
     private static final String PREFS = "rotas";
     private static final String CHAVE_CRIADAS = "criadas";
-    private static final String CHAVE_APAGADAS = "apagadas";
     private static final String COLECAO = "rotas";
 
     private RotasGuardadas() {
     }
 
+    /** As rotas predefinidas (vêm do CatalogoRotas). */
     public static List<Rota> listarPredefinidas() {
         return CatalogoRotas.obter();
     }
 
+    /** O ficheiro de preferências desta conta (rotas_<uid>). */
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getSharedPreferences(PREFS + "_" + Sessao.getInstance().getUid(), Context.MODE_PRIVATE);
     }
 
+    /** As rotas criadas pelo utilizador, guardadas no telemóvel. */
     public static synchronized List<Rota> listarCriadas(Context ctx) {
         List<Rota> lista = new ArrayList<>();
         String json = prefs(ctx).getString(CHAVE_CRIADAS, "[]");
@@ -80,39 +82,16 @@ public final class RotasGuardadas {
         }).start();
     }
 
-    // ids das rotas apagadas no telemóvel cujo apagamento na cloud ainda não foi confirmado
-    private static synchronized Set<String> pendentesApagar(Context ctx) {
-        return new HashSet<>(prefs(ctx).getStringSet(CHAVE_APAGADAS, new HashSet<String>()));
-    }
-
-    private static synchronized void removerPendente(Context ctx, String id) {
-        Set<String> pendentes = pendentesApagar(ctx);
-        if (pendentes.remove(id)) {
-            prefs(ctx).edit().putStringSet(CHAVE_APAGADAS, pendentes).apply();
-        }
-    }
-
-    /** Apaga uma rota criada pelo utilizador (no telemóvel e, em segundo plano, na cloud). */
+    /** Apaga uma rota criada pelo utilizador, no telemóvel e (em segundo plano) na cloud. */
     public static synchronized void apagarCriada(Context ctx, final String id) {
         List<Rota> lista = listarCriadas(ctx);
-        for (Iterator<Rota> it = lista.iterator(); it.hasNext(); ) {
-            if (it.next().getId().equals(id)) {
-                it.remove();
-            }
-        }
+        lista.removeIf(rota -> rota.getId().equals(id));
         gravarLocal(ctx, lista);
-
-        Set<String> pendentes = pendentesApagar(ctx);
-        pendentes.add(id);
-        prefs(ctx).edit().putStringSet(CHAVE_APAGADAS, pendentes).apply();
-
-        final Context app = ctx.getApplicationContext();
         new Thread(() -> {
             try {
                 BaseDadosCloud.apagar(COLECAO, id);
-                removerPendente(app, id);
             } catch (IOException e) {
-                // sem rede: fica pendente e é apagada da cloud na próxima sincronização
+                // sem rede: a rota continua na cloud e volta a aparecer na próxima sincronização
             }
         }).start();
     }
@@ -129,22 +108,16 @@ public final class RotasGuardadas {
     }
 
     /**
-     * Junta as rotas da cloud com as locais (nos dois sentidos).
-     * Chamar a partir de uma worker thread.
+     * Junta as rotas da cloud com as do telemóvel (nos dois sentidos).
+     * Chamar a partir de uma thread de fundo.
      */
     public static void sincronizar(Context ctx) throws IOException {
-        // primeiro conclui os apagamentos que ficaram por fazer na cloud
-        for (String id : pendentesApagar(ctx)) {
-            BaseDadosCloud.apagar(COLECAO, id);
-            removerPendente(ctx, id);
-        }
         List<String> remotos = BaseDadosCloud.listar(COLECAO);
         Set<String> idsRemotos = new HashSet<>();
         List<Rota> paraEnviar = new ArrayList<>();
 
         synchronized (RotasGuardadas.class) {
             List<Rota> locais = listarCriadas(ctx);
-            Set<String> apagadas = pendentesApagar(ctx);
             Set<String> idsLocais = new HashSet<>();
             for (Rota r : locais) {
                 idsLocais.add(r.getId());
@@ -154,7 +127,7 @@ public final class RotasGuardadas {
                 try {
                     Rota r = Rota.fromJson(new JSONObject(json));
                     idsRemotos.add(r.getId());
-                    if (!idsLocais.contains(r.getId()) && !apagadas.contains(r.getId())) {
+                    if (!idsLocais.contains(r.getId())) {
                         locais.add(r);
                         idsLocais.add(r.getId());
                         alterou = true;

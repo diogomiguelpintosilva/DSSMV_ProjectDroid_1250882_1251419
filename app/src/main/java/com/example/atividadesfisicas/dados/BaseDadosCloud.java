@@ -15,17 +15,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Acesso ao Firebase Firestore pela API REST, usando o token do utilizador autenticado
- * (mesma abordagem do Autenticacao). Cada utilizador tem as suas coleções em
- * utilizadores/{uid}/rotas e utilizadores/{uid}/atividades.
- * Cada documento guarda o JSON do objeto num único campo de texto ("json").
- * Todos os métodos têm de ser chamados a partir de uma worker thread.
+ * Acesso ao Firebase Firestore (base de dados na cloud) pela API REST, com o token do utilizador
+ * autenticado. Cada utilizador tem as suas coleções em utilizadores/{uid}/rotas e
+ * utilizadores/{uid}/atividades. Cada documento guarda o objeto em JSON num campo de texto ("json").
+ * Todos os métodos têm de ser chamados a partir de uma thread de fundo.
  */
 public final class BaseDadosCloud {
 
     private static final String BASE = "https://firestore.googleapis.com/v1/projects/"
             + Config.FIREBASE_PROJECT_ID + "/databases/(default)/documents/";
-    private static final String URL_REFRESH = "https://securetoken.googleapis.com/v1/token?key=";
+    private static final String URL_RENOVAR_TOKEN = "https://securetoken.googleapis.com/v1/token?key=";
 
     private BaseDadosCloud() {
     }
@@ -56,45 +55,39 @@ public final class BaseDadosCloud {
         }
     }
 
-    /** Devolve o JSON de todos os documentos da coleção do utilizador. */
+    /**
+     * Devolve o JSON dos documentos da coleção do utilizador (até 300; é mais do que suficiente
+     * para as rotas e o histórico de uma conta).
+     */
     public static List<String> listar(String colecao) throws IOException {
         List<String> resultado = new ArrayList<>();
-        String pagina = null;
         try {
-            do {
-                String url = BASE + caminhoColecao(colecao) + "?pageSize=300";
-                if (pagina != null) {
-                    url += "&pageToken=" + URLEncoder.encode(pagina, "UTF-8");
-                }
-                Resposta r = enviar("GET", url, null);
-                if (r.codigo != 200) {
-                    throw new IOException("Firestore devolveu " + r.codigo);
-                }
-                JSONObject obj = new JSONObject(r.corpo);
-                JSONArray docs = obj.optJSONArray("documents");
-                if (docs != null) {
-                    for (int i = 0; i < docs.length(); i++) {
-                        JSONObject campos = docs.getJSONObject(i).optJSONObject("fields");
-                        if (campos != null && campos.has("json")) {
-                            resultado.add(campos.getJSONObject("json").getString("stringValue"));
-                        }
+            Resposta r = enviar("GET", BASE + caminhoColecao(colecao) + "?pageSize=300", null);
+            if (r.codigo != 200) {
+                throw new IOException("Firestore devolveu " + r.codigo);
+            }
+            // se a coleção estiver vazia, o Firestore nem envia a chave "documents"
+            JSONArray documentos = new JSONObject(r.corpo).optJSONArray("documents");
+            if (documentos != null) {
+                for (int i = 0; i < documentos.length(); i++) {
+                    JSONObject campos = documentos.getJSONObject(i).optJSONObject("fields");
+                    if (campos != null && campos.has("json")) {
+                        resultado.add(campos.getJSONObject("json").getString("stringValue"));
                     }
                 }
-                pagina = obj.optString("nextPageToken", "");
-                if (pagina.isEmpty()) {
-                    pagina = null;
-                }
-            } while (pagina != null);
+            }
         } catch (JSONException e) {
             throw new IOException(e);
         }
         return resultado;
     }
 
+    /** Caminho da coleção da conta atual: utilizadores/<uid>/<colecao>. */
     private static String caminhoColecao(String colecao) {
         return "utilizadores/" + Sessao.getInstance().getUid() + "/" + colecao;
     }
 
+    /** Envia um pedido com o token; se o token tiver expirado (401), renova-o e tenta outra vez. */
     private static Resposta enviar(String metodo, String url, String corpo) throws IOException {
         String tipo = (corpo != null) ? "application/json; charset=UTF-8" : null;
         Resposta r = PedidosHttp.pedido(metodo, url, corpo, tipo, obterToken(false));
@@ -121,7 +114,7 @@ public final class BaseDadosCloud {
             }
             String corpo = "grant_type=refresh_token&refresh_token="
                     + URLEncoder.encode(sessao.getRefreshToken(), "UTF-8");
-            Resposta r = PedidosHttp.pedido("POST", URL_REFRESH + Config.FIREBASE_API_KEY, corpo,
+            Resposta r = PedidosHttp.pedido("POST", URL_RENOVAR_TOKEN + Config.FIREBASE_API_KEY, corpo,
                     "application/x-www-form-urlencoded", null);
             if (r.codigo != 200) {
                 throw new IOException("Não foi possível renovar o token (" + r.codigo + ")");

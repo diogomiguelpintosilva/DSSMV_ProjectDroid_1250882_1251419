@@ -14,14 +14,13 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Histórico de atividades do utilizador. Fica em SharedPreferences (separado por conta) e é sincronizado
- * com o Firestore, tal como as rotas criadas.
+ * O histórico de exercícios do utilizador. Fica no telemóvel (SharedPreferences, separado por conta)
+ * e é sincronizado com o Firestore, tal como as rotas criadas.
  */
 public final class HistoricoGuardado {
 
@@ -32,6 +31,7 @@ public final class HistoricoGuardado {
     private HistoricoGuardado() {
     }
 
+    /** O ficheiro de preferências desta conta (historico_<uid>). */
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getSharedPreferences(PREFS + "_" + Sessao.getInstance().getUid(), Context.MODE_PRIVATE);
     }
@@ -48,12 +48,8 @@ public final class HistoricoGuardado {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        Collections.sort(lista, new Comparator<RegistoAtividade>() {
-            @Override
-            public int compare(RegistoAtividade a, RegistoAtividade b) {
-                return Long.compare(b.getInicio(), a.getInicio());
-            }
-        });
+        // ordem inversa da data de início: o mais recente primeiro
+        Collections.sort(lista, (a, b) -> Long.compare(b.getInicio(), a.getInicio()));
         return lista;
     }
 
@@ -70,6 +66,7 @@ public final class HistoricoGuardado {
         prefs(ctx).edit().putString(CHAVE, arr.toString()).apply();
     }
 
+    /** Procura um registo pelo id (ou null se não existir). */
     public static synchronized RegistoAtividade procurar(Context ctx, String id) {
         for (RegistoAtividade r : listar(ctx)) {
             if (r.getId().equals(id)) {
@@ -79,7 +76,7 @@ public final class HistoricoGuardado {
         return null;
     }
 
-    /** Guarda a atividade terminada no histórico e envia-a para a cloud em segundo plano. */
+    /** Guarda o exercício terminado no histórico e envia-o para a cloud em segundo plano. */
     public static synchronized void guardar(Context ctx, Atividade atividade) {
         if (atividade == null) {
             return;
@@ -108,8 +105,8 @@ public final class HistoricoGuardado {
     }
 
     /**
-     * Junta o histórico da cloud com o local (nos dois sentidos).
-     * Chamar a partir de uma worker thread.
+     * Junta o histórico da cloud com o do telemóvel (nos dois sentidos).
+     * Chamar a partir de uma thread de fundo.
      */
     public static void sincronizar(Context ctx) throws IOException {
         List<String> remotos = BaseDadosCloud.listar(COLECAO);

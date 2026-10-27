@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Permissões de runtime usadas pela aplicação.*/
-
+ * Permissões pedidas ao utilizador com a app a correr: localização e, a partir do Android 13, notificações.
+ */
 public final class Permissoes {
 
     private Permissoes() {
@@ -29,11 +29,13 @@ public final class Permissoes {
         return lista.toArray(new String[0]);
     }
 
+    /** A localização precisa (GPS) já foi autorizada? */
     public static boolean temLocalizacao(Context ctx) {
         return ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** As notificações podem ser mostradas? (antes do Android 13 não é preciso pedir) */
     public static boolean temNotificacoes(Context ctx) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return true;

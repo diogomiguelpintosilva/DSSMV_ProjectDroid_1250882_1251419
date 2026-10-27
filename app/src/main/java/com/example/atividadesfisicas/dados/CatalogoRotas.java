@@ -7,14 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * UC3: rotas predefinidas existentes na aplicação.
- * ATENÇÃO: coordenadas de EXEMPLO (centro do Porto). Substituir/acrescentar rotas reais conforme necessário.
+ * UC3: as rotas predefinidas, iguais para todos os utilizadores.
+ * As duas primeiras usam coordenadas de exemplo no centro do Porto.
  */
 public final class CatalogoRotas {
 
     private CatalogoRotas() {
     }
 
+    /** Devolve uma lista nova com as rotas predefinidas. */
     public static List<Rota> obter() {
         List<Rota> lista = new ArrayList<>();
 

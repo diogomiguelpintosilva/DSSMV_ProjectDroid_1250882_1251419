@@ -17,12 +17,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Guarda a atividade em curso. É partilhado entre o serviço de GPS (que escreve) e os ecrãs (que lêem).
+ * Guarda o exercício (atividade) em curso. É partilhado entre o serviço de GPS, que escreve,
+ * e os ecrãs, que leem. Calcula a distância, a velocidade e a velocidade média.
  * Todos os métodos são synchronized porque há várias threads a usá-lo.
  */
 public final class GestorExercicio {
 
-    private static final GestorExercicio INSTANCE = new GestorExercicio();
+    private static final GestorExercicio INSTANCIA = new GestorExercicio();
 
     private Atividade atual;
     private boolean ativa = false;
@@ -36,10 +37,10 @@ public final class GestorExercicio {
     }
 
     public static GestorExercicio getInstance() {
-        return INSTANCE;
+        return INSTANCIA;
     }
 
-    /** Iniciar atividade. */
+    /** UC2: começa um exercício novo na rota indicada. */
     public synchronized void iniciar(Rota rota) {
         atual = new Atividade(Config.TIPO_ATIVIDADE, System.currentTimeMillis(), rota);
         inicioElapsed = SystemClock.elapsedRealtime();
@@ -58,6 +59,7 @@ public final class GestorExercicio {
         return atual;
     }
 
+    /** Tempo decorrido: calculado agora se o exercício está ativo, ou o valor final se já terminou. */
     public synchronized long getTempoDecorridoMs() {
         if (atual == null) {
             return 0;
@@ -65,7 +67,7 @@ public final class GestorExercicio {
         return ativa ? SystemClock.elapsedRealtime() - inicioElapsed : atual.getTempoDecorrido();
     }
 
-    /** Chamado pelo serviço de GPS a cada nova localização. Calcula velocidade, distância e altitude. */
+    /** Chamado pelo serviço de GPS a cada nova posição. Calcula a velocidade, a distância e a telemetria. */
     public synchronized void registarLocalizacao(Location loc) {
         if (!ativa || loc == null) {
             return;
@@ -78,6 +80,7 @@ public final class GestorExercicio {
         double altitude = loc.hasAltitude() ? loc.getAltitude() : 0;
         PontoGPS ponto = new PontoGPS(loc.getLatitude(), loc.getLongitude(), altitude, agora);
 
+        // o GPS dá a velocidade em m/s; × 3,6 converte para km/h
         double velocidadeKmh = loc.hasSpeed() ? loc.getSpeed() * 3.6 : 0;
 
         if (ultimoPonto != null) {
@@ -112,6 +115,7 @@ public final class GestorExercicio {
         return ultimaTelemetria;
     }
 
+    /** Cópia do percurso (para quem lê não ser afetado pelos pontos que o serviço vai acrescentando). */
     public synchronized List<PontoGPS> copiaPercurso() {
         if (atual == null) {
             return new ArrayList<>();
@@ -161,7 +165,7 @@ public final class GestorExercicio {
         }
     }
 
-    /** Fixa o fim e calcula tempo total e velocidade média. */
+    /** UC9: fixa o fim e calcula o tempo total e a velocidade média (km ÷ horas). */
     public synchronized void terminar() {
         if (!ativa || atual == null) {
             return;

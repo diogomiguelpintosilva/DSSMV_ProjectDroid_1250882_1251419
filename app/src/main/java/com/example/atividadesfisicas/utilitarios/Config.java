@@ -8,10 +8,10 @@ public final class Config {
     private Config() {
     }
 
-    /** Web API Key do projeto Firebase (Project settings > General). Autenticação Email/Password tem de estar ativa. */
+    /** Chave da API Web do projeto Firebase (consola Firebase, definições do projeto). O login por email/palavra-passe tem de estar ativo. */
     public static final String FIREBASE_API_KEY = "AIzaSyBtXZgijThuMFkOlywY2EXkGqfxfnNbxAk";
 
-    /**Identificação da app nos pedidos de mapas.*/
+    /** Identificação da app nos pedidos de mapas (o OpenStreetMap exige-a). */
     public static final String USER_AGENT_MAPA =
             "DSSMV_ProjectDroid/1.0 (projeto academico ISEP; +https://github.com/diogomiguelpintosilva/DSSMV_ProjectDroid_1250882_1251419)";
 
@@ -39,12 +39,12 @@ public final class Config {
     /** Tempo que cada foto fica no vídeo resumo. */
     public static final long DURACAO_FOTO_NO_RESUMO_MS = 3000L;
 
-    /** Id do projeto Firebase (Firestore). Está no google-services.json (project_id). */
+    /** Identificador do projeto Firebase, usado no endereço do Firestore. */
     public static final String FIREBASE_PROJECT_ID = "wayline-bd8ac";
 
-    /** Débito (bits/s) do vídeo exportado; valores baixos fazem o vídeo ficar pixelado. */
+    /** Débito (bits por segundo) dos vídeos exportados; valores baixos fazem o vídeo ficar pixelado. */
     public static final int VIDEO_BITRATE = 10_000_000;
 
-    /** Lado maior (em pixéis) das fotos com métricas; 4096 mantém a resolução total da maioria das câmaras. */
+    /** Lado maior (em píxeis) das fotos com métricas; 4096 mantém a resolução total da maioria das câmaras. */
     public static final int FOTO_LADO_MAXIMO = 4096;
 }

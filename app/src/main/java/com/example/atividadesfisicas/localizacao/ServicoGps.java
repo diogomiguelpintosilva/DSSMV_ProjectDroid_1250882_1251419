@@ -14,9 +14,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+
 import com.example.atividadesfisicas.dados.GestorExercicio;
 import com.example.atividadesfisicas.modelo.Atividade;
 import com.example.atividadesfisicas.modelo.AvisoDesvio;
@@ -27,39 +29,46 @@ import com.example.atividadesfisicas.utilitarios.Config;
 import com.example.atividadesfisicas.utilitarios.Permissoes;
 
 /**
- * Serviço em primeiro plano que recolhe o GPS enquanto a atividade decorre (Android Service, aula T3/T4).
- * Escreve no GestorExercicio e deteta desvios à rota planeada (vibração + notificação).
+ * Serviço em primeiro plano que recolhe o GPS enquanto o exercício decorre.
+ * Escreve cada posição no GestorExercicio, deteta desvios à rota planeada (UC10)
+ * e emite os lembretes multimédia (UC11).
  */
 public class ServicoGps extends Service {
 
-    private LocationManager locationManager;
+    private LocationManager gestorLocalizacao;
     private long ultimoAvisoMs = 0;
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Handler agendador = new Handler(Looper.getMainLooper());
 
-    /** UC11: de X em X tempo lembra o utilizador (notificação + vibração) de tirar foto ou vídeo. */
+    /**
+     * UC11: de X em X tempo lembra o utilizador (notificação + vibração) de tirar foto ou vídeo.
+     * É uma classe anónima (e não uma lambda) porque se volta a agendar a si própria com "this".
+     */
     private final Runnable lembrete = new Runnable() {
         @Override
         public void run() {
-            GestorExercicio manager = GestorExercicio.getInstance();
-            if (!manager.isAtiva()) {
+            GestorExercicio gestor = GestorExercicio.getInstance();
+            if (!gestor.isAtiva()) {
                 return;
             }
-            manager.registarLembrete(new LembreteMultimedia(System.currentTimeMillis(),
+            gestor.registarLembrete(new LembreteMultimedia(System.currentTimeMillis(),
                     Config.INTERVALO_LEMBRETE_MS));
             Alertas.notificarLembrete(ServicoGps.this);
             Alertas.vibrarCurto(ServicoGps.this);
-            handler.postDelayed(this, Config.INTERVALO_LEMBRETE_MS);
+            agendador.postDelayed(this, Config.INTERVALO_LEMBRETE_MS);
         }
     };
 
-    private final LocationListener listener = new LocationListener() {
+    /** Recebe cada nova posição do GPS. */
+    private final LocationListener ouvinteGps = new LocationListener() {
         @Override
         public void onLocationChanged(@NonNull Location location) {
-            GestorExercicio manager = GestorExercicio.getInstance();
-            manager.registarLocalizacao(location);
-            verificarDesvio(manager);
+            GestorExercicio gestor = GestorExercicio.getInstance();
+            gestor.registarLocalizacao(location);
+            verificarDesvio(gestor);
         }
+
+        // os métodos seguintes não são usados, mas têm de existir nas versões antigas do Android
 
         @Override
         public void onProviderEnabled(@NonNull String provider) {
@@ -75,13 +84,12 @@ public class ServicoGps extends Service {
         }
     };
 
-    /**
-     * Arranca o serviço (chamar com a permissão de localização já concedida).
-     */
+    /** Arranca o serviço (chamar com a permissão de localização já concedida). */
     public static void iniciar(Context ctx) {
         ContextCompat.startForegroundService(ctx, new Intent(ctx, ServicoGps.class));
     }
 
+    /** Para o serviço (o Android chama então o onDestroy). */
     public static void parar(Context ctx) {
         ctx.stopService(new Intent(ctx, ServicoGps.class));
     }
@@ -90,7 +98,7 @@ public class ServicoGps extends Service {
     public void onCreate() {
         super.onCreate();
         Alertas.criarCanais(this);
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        gestorLocalizacao = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
     }
 
     @SuppressLint("MissingPermission")
@@ -106,23 +114,25 @@ public class ServicoGps extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        locationManager.removeUpdates(listener);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, Config.GPS_INTERVALO_MS, 0f, listener, Looper.getMainLooper());
-        handler.removeCallbacks(lembrete);
-        handler.postDelayed(lembrete, Config.INTERVALO_LEMBRETE_MS);
+        gestorLocalizacao.removeUpdates(ouvinteGps);
+        gestorLocalizacao.requestLocationUpdates(LocationManager.GPS_PROVIDER, Config.GPS_INTERVALO_MS, 0f,
+                ouvinteGps, Looper.getMainLooper());
+        agendador.removeCallbacks(lembrete);
+        agendador.postDelayed(lembrete, Config.INTERVALO_LEMBRETE_MS);
         return START_NOT_STICKY;
     }
 
     @Override
     public void onDestroy() {
-        handler.removeCallbacks(lembrete);
-        if (locationManager != null) {
-            locationManager.removeUpdates(listener);
+        agendador.removeCallbacks(lembrete);
+        if (gestorLocalizacao != null) {
+            gestorLocalizacao.removeUpdates(ouvinteGps);
         }
         stopForeground(true);
         super.onDestroy();
     }
 
+    /** Ninguém se liga ao serviço: a comunicação com o ecrã faz-se pelo GestorExercicio. */
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -130,10 +140,10 @@ public class ServicoGps extends Service {
     }
 
     /**
-     * Compara a posição atual com a rota planeada; se passar a tolerância, vibra e notifica.
+     * UC10: compara a posição atual com a rota planeada; se passar a tolerância, vibra e notifica.
      */
-    private void verificarDesvio(GestorExercicio manager) {
-        Atividade atividade = manager.getAtual();
+    private void verificarDesvio(GestorExercicio gestor) {
+        Atividade atividade = gestor.getAtual();
         if (atividade == null) {
             return;
         }
@@ -141,7 +151,7 @@ public class ServicoGps extends Service {
         if (rota.getModo() == Rota.Modo.LIVRE || rota.getPontos().size() < 2) {
             return;
         }
-        PontoGPS posicao = manager.getUltimoPonto();
+        PontoGPS posicao = gestor.getUltimoPonto();
         if (posicao == null) {
             return;
         }
@@ -149,7 +159,7 @@ public class ServicoGps extends Service {
         long agora = System.currentTimeMillis();
         if (distancia > Config.TOLERANCIA_DESVIO_METROS && agora - ultimoAvisoMs >= Config.COOLDOWN_AVISO_DESVIO_MS) {
             ultimoAvisoMs = agora;
-            manager.registarAviso(new AvisoDesvio(agora, distancia));
+            gestor.registarAviso(new AvisoDesvio(agora, distancia));
             Alertas.vibrar(this);
             Alertas.notificarDesvio(this);
         }

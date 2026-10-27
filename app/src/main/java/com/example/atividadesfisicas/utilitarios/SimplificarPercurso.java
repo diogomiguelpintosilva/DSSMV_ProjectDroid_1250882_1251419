@@ -7,16 +7,17 @@ import com.example.atividadesfisicas.modelo.PontoGPS;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Funções auxiliares sobre listas de pontos GPS. */
+/**
+ * Reduz o número de pontos de um percurso antes de o guardar (histórico e rotas guardadas).
+ */
 public final class SimplificarPercurso {
 
     private SimplificarPercurso() {
     }
 
     /**
-     * Reduz o número de pontos de um percurso: mantém só pontos afastados pelo menos
-     * distanciaMinimaMetros do anterior (mais o último) e limita o total a maximoPontos.
-     * Serve para guardar rotas e histórico sem ocupar demasiado espaço.
+     * Mantém só pontos afastados pelo menos distanciaMinimaMetros do último ponto mantido
+     * (mais o último ponto do percurso) e limita o total a maximoPontos.
      */
     public static List<PontoGPS> simplificar(List<PontoGPS> pontos, double distanciaMinimaMetros,
                                              int maximoPontos) {
@@ -24,13 +25,15 @@ public final class SimplificarPercurso {
         if (pontos == null || pontos.isEmpty()) {
             return resultado;
         }
-        float[] d = new float[1];
+
+        // 1.º filtro: distância mínima entre pontos guardados
+        float[] distancia = new float[1];
         PontoGPS ultimo = pontos.get(0);
         resultado.add(ultimo);
         for (PontoGPS p : pontos) {
             Location.distanceBetween(ultimo.getLatitude(), ultimo.getLongitude(),
-                    p.getLatitude(), p.getLongitude(), d);
-            if (d[0] >= distanciaMinimaMetros) {
+                    p.getLatitude(), p.getLongitude(), distancia);
+            if (distancia[0] >= distanciaMinimaMetros) {
                 resultado.add(p);
                 ultimo = p;
             }
@@ -39,6 +42,8 @@ public final class SimplificarPercurso {
         if (resultado.get(resultado.size() - 1) != fim) {
             resultado.add(fim);
         }
+
+        // 2.º filtro: número máximo de pontos, escolhidos igualmente espaçados
         if (maximoPontos >= 2 && resultado.size() > maximoPontos) {
             List<PontoGPS> reduzido = new ArrayList<>();
             double passo = (resultado.size() - 1) / (double) (maximoPontos - 1);

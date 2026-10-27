@@ -18,7 +18,7 @@ import java.io.OutputStream;
 
 /**
  * Copia ficheiros da pasta privada da app para a galeria do telemóvel (pasta Filmes/WayLine),
- * para o utilizador os ver na app Fotos/Galeria e os poder partilhar. Chamar numa worker thread.
+ * para o utilizador os ver na app Fotos/Galeria e os poder partilhar. Chamar numa thread de fundo.
  */
 public final class Galeria {
 
@@ -27,6 +27,7 @@ public final class Galeria {
     private Galeria() {
     }
 
+    /** Copia o vídeo para a galeria com o nome indicado. */
     public static void guardarVideo(Context ctx, File origem, String nome) throws IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Android 10 ou superior: MediaStore, sem pedir permissão
@@ -40,12 +41,12 @@ public final class Galeria {
             if (destino == null) {
                 throw new IOException("Não foi possível criar o ficheiro na galeria.");
             }
-            try (InputStream in = new FileInputStream(origem);
-                 OutputStream out = resolver.openOutputStream(destino)) {
-                if (out == null) {
+            try (InputStream entrada = new FileInputStream(origem);
+                 OutputStream saida = resolver.openOutputStream(destino)) {
+                if (saida == null) {
                     throw new IOException("Não foi possível abrir o destino.");
                 }
-                copiar(in, out);
+                copiar(entrada, saida);
             } catch (IOException e) {
                 resolver.delete(destino, null, null);
                 throw e;
@@ -60,21 +61,22 @@ public final class Galeria {
                 throw new IOException("Não foi possível criar a pasta Filmes/" + PASTA + ".");
             }
             File destino = new File(pasta, nome);
-            try (InputStream in = new FileInputStream(origem);
-                 OutputStream out = new FileOutputStream(destino)) {
-                copiar(in, out);
+            try (InputStream entrada = new FileInputStream(origem);
+                 OutputStream saida = new FileOutputStream(destino)) {
+                copiar(entrada, saida);
             }
             MediaScannerConnection.scanFile(ctx, new String[]{destino.getAbsolutePath()},
                     new String[]{"video/mp4"}, null);
         }
     }
 
-    private static void copiar(InputStream in, OutputStream out) throws IOException {
-        byte[] buffer = new byte[64 * 1024];
+    /** Copia em blocos de 64 KB, para não carregar o vídeo inteiro para a memória. */
+    private static void copiar(InputStream entrada, OutputStream saida) throws IOException {
+        byte[] bloco = new byte[64 * 1024];
         int lidos;
-        while ((lidos = in.read(buffer)) != -1) {
-            out.write(buffer, 0, lidos);
+        while ((lidos = entrada.read(bloco)) != -1) {
+            saida.write(bloco, 0, lidos);
         }
-        out.flush();
+        saida.flush();
     }
 }

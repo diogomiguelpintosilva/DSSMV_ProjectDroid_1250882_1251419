@@ -44,6 +44,18 @@ public class Rota {
         pontos.add(ponto);
     }
 
+    /**
+     * Cria uma rota do modo CRIADA (planeada pelo utilizador ou guardada a partir do modo livre)
+     * com um id único. Os pontos ficam sem instante, porque uma rota não tem horas.
+     */
+    public static Rota criada(String nome, List<PontoGPS> pontos) {
+        Rota rota = new Rota("criada_" + System.currentTimeMillis(), nome, Modo.CRIADA);
+        for (PontoGPS p : pontos) {
+            rota.adicionarPonto(new PontoGPS(p.getLatitude(), p.getLongitude(), p.getAltitude(), 0));
+        }
+        return rota;
+    }
+
     public JSONObject toJson() throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("id", id);
@@ -70,9 +82,7 @@ public class Rota {
         return rota;
     }
 
-    /**
-     * Usado pelo ArrayAdapter da ListView.
-     */
+    /** Texto de cada linha da lista de rotas (o ArrayAdapter usa o toString). */
     @Override
     public String toString() {
         return nome;

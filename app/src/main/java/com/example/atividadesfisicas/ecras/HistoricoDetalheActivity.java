@@ -24,7 +24,7 @@ public class HistoricoDetalheActivity extends AppCompatActivity {
 
     public static final String EXTRA_ID = "registo_id";
 
-    private MapView map;
+    private MapView mapa;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +38,7 @@ public class HistoricoDetalheActivity extends AppCompatActivity {
             return;
         }
 
-        map = findViewById(R.id.map);
+        mapa = findViewById(R.id.map);
         ((TextView) findViewById(R.id.tvTitulo)).setText(getString(R.string.historico_rota, registo.getNomeRota()));
         ((TextView) findViewById(R.id.tvData)).setText(registo.getDataFormatada());
         ((TextView) findViewById(R.id.tvTempoTotal)).setText(getString(R.string.resumo_tempo_total,
@@ -51,10 +51,10 @@ public class HistoricoDetalheActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.tvCapturas)).setText(getString(R.string.historico_capturas,
                 registo.getNumFotos(), registo.getNumVideos()));
 
-        Mapa.configurar(map, 16.0);
+        Mapa.configurar(mapa, 16.0);
         List<GeoPoint> pontos = Mapa.paraGeoPoints(registo.getPercurso());
-        map.getOverlays().add(Mapa.criarLinha(pontos, 0xFFD32F2F, 10f));
-        Mapa.ajustarAosPontos(map, pontos);
+        mapa.getOverlays().add(Mapa.criarLinha(pontos, Mapa.COR_PERCURSO, 10f));
+        Mapa.ajustarAosPontos(mapa, pontos);
 
         Button btnVoltar = findViewById(R.id.btnVoltar);
         btnVoltar.setOnClickListener(v -> finish());
@@ -63,23 +63,23 @@ public class HistoricoDetalheActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (map != null) {
-            map.onResume();
+        if (mapa != null) {
+            mapa.onResume();
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (map != null) {
-            map.onPause();
+        if (mapa != null) {
+            mapa.onPause();
         }
     }
 
     @Override
     protected void onDestroy() {
-        if (map != null) {
-            map.onDetach();
+        if (mapa != null) {
+            mapa.onDetach();
         }
         super.onDestroy();
     }

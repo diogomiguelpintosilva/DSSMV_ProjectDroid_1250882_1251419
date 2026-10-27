@@ -22,12 +22,13 @@ import java.util.ArrayList;
  */
 public class HistoricoActivity extends AppCompatActivity {
 
-    private ArrayAdapter<RegistoAtividade> adapter;
+    private ArrayAdapter<RegistoAtividade> adaptador;
     private TextView tvVazio;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // reutiliza o layout da lista de rotas (título, texto de lista vazia e lista)
         setContentView(R.layout.activity_escolher_rota);
 
         TextView tvTitulo = findViewById(R.id.tvTitulo);
@@ -37,13 +38,13 @@ public class HistoricoActivity extends AppCompatActivity {
         tvTitulo.setText(R.string.historico_titulo);
         tvVazio.setText(R.string.historico_vazio);
 
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1,
+        adaptador = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1,
                 new ArrayList<RegistoAtividade>(HistoricoGuardado.listar(this)));
-        lvRotas.setAdapter(adapter);
+        lvRotas.setAdapter(adaptador);
         atualizarVazio();
 
-        lvRotas.setOnItemClickListener((parent, view, position, id) -> {
-            RegistoAtividade escolhida = adapter.getItem(position);
+        lvRotas.setOnItemClickListener((lista, linha, posicao, id) -> {
+            RegistoAtividade escolhida = adaptador.getItem(posicao);
             if (escolhida == null) {
                 return;
             }
@@ -55,17 +56,18 @@ public class HistoricoActivity extends AppCompatActivity {
         SincronizacaoCloud.sincronizar(this, this::recarregar);
     }
 
+    /** Atualiza a lista com o histórico depois da sincronização. */
     private void recarregar() {
         if (isFinishing() || isDestroyed()) {
             return;
         }
-        adapter.clear();
-        adapter.addAll(HistoricoGuardado.listar(this));
-        adapter.notifyDataSetChanged();
+        adaptador.clear();
+        adaptador.addAll(HistoricoGuardado.listar(this));
+        adaptador.notifyDataSetChanged();
         atualizarVazio();
     }
 
     private void atualizarVazio() {
-        tvVazio.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
+        tvVazio.setVisibility(adaptador.isEmpty() ? View.VISIBLE : View.GONE);
     }
 }

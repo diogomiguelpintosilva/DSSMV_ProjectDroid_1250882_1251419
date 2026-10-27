@@ -12,17 +12,20 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.autenticacao.Sessao;
-import com.example.atividadesfisicas.dados.SincronizacaoCloud;
 import com.example.atividadesfisicas.dados.GestorExercicio;
+import com.example.atividadesfisicas.dados.SincronizacaoCloud;
 import com.example.atividadesfisicas.modelo.Rota;
 import com.example.atividadesfisicas.utilitarios.Permissoes;
 
 import java.util.Map;
 
-
+/**
+ * Menu principal: Planear rota (UC1), Escolher rota predefinida (UC3), Escolher rota criada (UC4),
+ * Modo livre (UC5) e Histórico de Atividade.
+ */
 public class MenuPrincipalActivity extends AppCompatActivity {
 
-    private final ActivityResultLauncher<String[]> permissoesLauncher = registerForActivityResult(
+    private final ActivityResultLauncher<String[]> pedidoPermissoes = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
             (Map<String, Boolean> resultado) -> {
                 if (!Permissoes.temLocalizacao(this)) {
@@ -46,9 +49,6 @@ public class MenuPrincipalActivity extends AppCompatActivity {
         Button btnCriada = findViewById(R.id.btnRotaCriada);
         Button btnLivre = findViewById(R.id.btnModoLivre);
         Button btnHistorico = findViewById(R.id.btnHistorico);
-        btnHistorico.setOnClickListener(v ->
-                startActivity(new Intent(this, HistoricoActivity.class)));
-        SincronizacaoCloud.sincronizar(this, null);
 
         btnPlanear.setOnClickListener(v ->
                 startActivity(new Intent(this, PlanearRotaActivity.class)));
@@ -61,16 +61,20 @@ public class MenuPrincipalActivity extends AppCompatActivity {
             intent.putExtra(ExercicioActivity.EXTRA_MODO, Rota.Modo.LIVRE.name());
             startActivity(intent);
         });
+        btnHistorico.setOnClickListener(v -> startActivity(new Intent(this, HistoricoActivity.class)));
+
+        // traz da cloud as rotas e o histórico da conta (e envia o que ficou só no telemóvel)
+        SincronizacaoCloud.sincronizar(this, null);
 
         if (!Permissoes.temLocalizacao(this)) {
-            permissoesLauncher.launch(Permissoes.permissoesPedidas());
+            pedidoPermissoes.launch(Permissoes.permissoesPedidas());
         }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // se há uma atividade a decorrer (ex.: voltou à app), regressa ao ecrã da atividade
+        // se há um exercício a decorrer (ex.: voltou à app pelo ícone), regressa ao ecrã do exercício
         if (GestorExercicio.getInstance().isAtiva()) {
             startActivity(new Intent(this, ExercicioActivity.class));
         }

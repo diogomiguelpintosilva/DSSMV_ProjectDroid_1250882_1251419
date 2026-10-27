@@ -1,9 +1,6 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.AtividadesFisicas" parent="Theme.Material3.DayNight">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
-    </style>
+<resources>
+    <!-- Tema da aplicação: Material Design 3, muda automaticamente entre claro e escuro. -->
+    <style name="Base.Theme.AtividadesFisicas" parent="Theme.Material3.DayNight" />
 
-    <style name="Theme.AtividadesFisicas" parent="Base.Theme.AtividadesFisicas"/>
+    <style name="Theme.AtividadesFisicas" parent="Base.Theme.AtividadesFisicas" />
 </resources>

@@ -2,9 +2,11 @@ package com.example.atividadesfisicas.ecras;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,12 +19,16 @@ import com.example.atividadesfisicas.modelo.Rota;
 import java.util.List;
 
 /**
- * UC3 (rota predefinida) e UC4 (rota criada previamente): lista de rotas numa ListView com ArrayAdapter
- * (aula TP3/TP4). Ao escolher uma rota, arranca a atividade.
+ * UC3 (rota predefinida) e UC4 (rota criada previamente): lista de rotas numa ListView com ArrayAdapter.
+ * Ao escolher uma rota, abre o ecrã do exercício. As rotas criadas podem ser apagadas (toque longo).
  */
 public class EscolherRotaActivity extends AppCompatActivity {
 
     public static final String EXTRA_MODO = "modo";
+
+    private ArrayAdapter<Rota> adaptador;
+    private TextView tvVazio;
+    private TextView tvDica;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,77 +36,51 @@ public class EscolherRotaActivity extends AppCompatActivity {
         setContentView(R.layout.activity_escolher_rota);
 
         TextView tvTitulo = findViewById(R.id.tvTitulo);
-        TextView tvVazio = findViewById(R.id.tvVazio);
+        tvVazio = findViewById(R.id.tvVazio);
+        tvDica = findViewById(R.id.tvDica);
         ListView lvRotas = findViewById(R.id.lvRotas);
 
         String modoTexto = getIntent().getStringExtra(EXTRA_MODO);
         Rota.Modo modo = (modoTexto == null) ? Rota.Modo.PREDEFINIDA : Rota.Modo.valueOf(modoTexto);
+        boolean criadas = (modo == Rota.Modo.CRIADA);
 
         List<Rota> rotas;
-        if (modo == Rota.Modo.PREDEFINIDA) {
-            tvTitulo.setText(R.string.escolher_titulo_predefinida);
-            rotas = RotasGuardadas.listarPredefinidas();
-        } else {
+        if (criadas) {
             tvTitulo.setText(R.string.escolher_titulo_criada);
             rotas = RotasGuardadas.listarCriadas(this);
+        } else {
+            tvTitulo.setText(R.string.escolher_titulo_predefinida);
+            rotas = RotasGuardadas.listarPredefinidas();
         }
 
-        final TextView tvDica = findViewById(R.id.tvDica);
-        if (modo == Rota.Modo.CRIADA && !rotas.isEmpty()) {
-            tvDica.setVisibility(android.view.View.VISIBLE);
-        }
+        adaptador = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, rotas);
+        lvRotas.setAdapter(adaptador);
+        atualizarTextos(criadas);
 
-        if (rotas.isEmpty()) {
-            tvVazio.setVisibility(android.view.View.VISIBLE);
-        }
-
-        final ArrayAdapter<Rota> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1, rotas);
-        lvRotas.setAdapter(adapter);
-
-        if (modo == Rota.Modo.CRIADA) {
+        if (criadas) {
             // rotas guardadas noutro dispositivo com a mesma conta
             SincronizacaoCloud.sincronizar(this, () -> {
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
-                adapter.clear();
-                adapter.addAll(RotasGuardadas.listarCriadas(this));
-                adapter.notifyDataSetChanged();
-                tvVazio.setVisibility(adapter.isEmpty()
-                        ? android.view.View.VISIBLE : android.view.View.GONE);
-                tvDica.setVisibility(adapter.isEmpty()
-                        ? android.view.View.GONE : android.view.View.VISIBLE);
+                adaptador.clear();
+                adaptador.addAll(RotasGuardadas.listarCriadas(this));
+                adaptador.notifyDataSetChanged();
+                atualizarTextos(true);
             });
 
-            // manter premido numa rota criada permite apagá-la (as predefinidas não se apagam)
-            lvRotas.setOnItemLongClickListener((parent, view, position, id) -> {
-                final Rota alvo = adapter.getItem(position);
-                if (alvo == null) {
-                    return true;
+            // manter premida uma rota criada permite apagá-la (as predefinidas não se apagam)
+            lvRotas.setOnItemLongClickListener((lista, linha, posicao, id) -> {
+                Rota alvo = adaptador.getItem(posicao);
+                if (alvo != null) {
+                    confirmarApagar(alvo);
                 }
-                new AlertDialog.Builder(this)
-                        .setTitle(R.string.escolher_apagar_titulo)
-                        .setMessage(getString(R.string.escolher_apagar_mensagem, alvo.getNome()))
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .setPositiveButton(R.string.escolher_apagar, (dialog, which) -> {
-                            RotasGuardadas.apagarCriada(this, alvo.getId());
-                            adapter.remove(alvo);
-                            adapter.notifyDataSetChanged();
-                            if (adapter.isEmpty()) {
-                                tvVazio.setVisibility(android.view.View.VISIBLE);
-                                tvDica.setVisibility(android.view.View.GONE);
-                            }
-                            android.widget.Toast.makeText(this, R.string.escolher_apagada,
-                                    android.widget.Toast.LENGTH_SHORT).show();
-                        })
-                        .show();
-                return true;
+                return true; // o toque longo foi tratado (não abre a rota)
             });
         }
 
-        lvRotas.setOnItemClickListener((parent, view, position, id) -> {
-            Rota escolhida = adapter.getItem(position);
+        lvRotas.setOnItemClickListener((lista, linha, posicao, id) -> {
+            Rota escolhida = adaptador.getItem(posicao);
             if (escolhida == null) {
                 return;
             }
@@ -110,5 +90,28 @@ public class EscolherRotaActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         });
+    }
+
+    /** Pede confirmação e apaga a rota (no telemóvel e na cloud). */
+    private void confirmarApagar(Rota alvo) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.escolher_apagar_titulo)
+                .setMessage(getString(R.string.escolher_apagar_mensagem, alvo.getNome()))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.escolher_apagar, (dialogo, botao) -> {
+                    RotasGuardadas.apagarCriada(this, alvo.getId());
+                    adaptador.remove(alvo);
+                    adaptador.notifyDataSetChanged();
+                    atualizarTextos(true);
+                    Toast.makeText(this, R.string.escolher_apagada, Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
+    /** Texto de lista vazia e, nas rotas criadas, a dica para apagar. */
+    private void atualizarTextos(boolean criadas) {
+        boolean vazia = adaptador.isEmpty();
+        tvVazio.setVisibility(vazia ? View.VISIBLE : View.GONE);
+        tvDica.setVisibility(criadas && !vazia ? View.VISIBLE : View.GONE);
     }
 }

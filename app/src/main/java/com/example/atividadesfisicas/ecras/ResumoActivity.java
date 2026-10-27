@@ -8,14 +8,12 @@ import android.os.Environment;
 import android.view.View;
 import android.widget.Button;
 import android.widget.MediaController;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
@@ -23,12 +21,11 @@ import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.dados.GestorExercicio;
 import com.example.atividadesfisicas.dados.RotasGuardadas;
 import com.example.atividadesfisicas.mapa.Mapa;
-import com.example.atividadesfisicas.multimedia.Galeria;
-import com.example.atividadesfisicas.multimedia.GeradorVideoResumo;
 import com.example.atividadesfisicas.modelo.Atividade;
-import com.example.atividadesfisicas.modelo.PontoGPS;
 import com.example.atividadesfisicas.modelo.Rota;
 import com.example.atividadesfisicas.modelo.VideoResumo;
+import com.example.atividadesfisicas.multimedia.Galeria;
+import com.example.atividadesfisicas.multimedia.GeradorVideoResumo;
 import com.example.atividadesfisicas.utilitarios.Formatacao;
 import com.example.atividadesfisicas.utilitarios.SimplificarPercurso;
 
@@ -41,17 +38,24 @@ import java.util.List;
 
 /**
  * Ecrã final (UC9): rota efetuada, velocidade média, tempo total, distância total e vídeo resumo (máx. 2 min).
+ * No modo livre permite guardar o percurso como rota; o vídeo resumo pode ser guardado na galeria.
  */
 public class ResumoActivity extends AppCompatActivity {
 
-    private MapView map;
+    /** Para guardar uma rota do modo livre: um ponto a cada 10 m, no máximo 500 pontos. */
+    private static final double DISTANCIA_MINIMA_PONTOS_M = 10;
+    private static final int MAXIMO_PONTOS_ROTA = 500;
+    /** Abaixo disto não há percurso que valha a pena guardar. */
+    private static final double DISTANCIA_MINIMA_ROTA_M = 20;
+
+    private MapView mapa;
     private TextView tvEstadoVideo;
     private VideoView videoView;
     private Button btnGuardarVideo;
     private String caminhoVideo;
 
     // Android 9 ou anterior: guardar na galeria exige permissão de escrita
-    private final ActivityResultLauncher<String> permissaoArmazenamentoLauncher = registerForActivityResult(
+    private final ActivityResultLauncher<String> pedidoPermissaoArmazenamento = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
             concedida -> {
                 if (concedida) {
@@ -67,12 +71,13 @@ public class ResumoActivity extends AppCompatActivity {
         Mapa.inicializar(getApplicationContext());
         setContentView(R.layout.activity_resumo);
 
-        map = findViewById(R.id.map);
+        mapa = findViewById(R.id.map);
         tvEstadoVideo = findViewById(R.id.tvEstadoVideo);
         videoView = findViewById(R.id.videoView);
         btnGuardarVideo = findViewById(R.id.btnGuardarVideo);
         btnGuardarVideo.setOnClickListener(v -> aoGuardarVideo());
         Button btnVoltar = findViewById(R.id.btnVoltar);
+        btnVoltar.setOnClickListener(v -> finish());
 
         final Atividade atividade = GestorExercicio.getInstance().getAtual();
         if (atividade == null) {
@@ -87,17 +92,14 @@ public class ResumoActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.tvDistanciaTotal)).setText(getString(R.string.resumo_distancia_total,
                 Formatacao.formatarDistancia(atividade.getDistanciaTotal())));
 
-        // rota efetuada
-        Mapa.configurar(map, 16.0);
-        map.setMultiTouchControls(false);
+        // rota efetuada (o mapa aqui só serve para ver, sem zoom com os dedos)
+        Mapa.configurar(mapa, 16.0);
+        mapa.setMultiTouchControls(false);
         List<GeoPoint> pontos = Mapa.paraGeoPoints(atividade.getPercurso());
-        map.getOverlays().add(Mapa.criarLinha(pontos, 0xFFD32F2F, 10f));
-        Mapa.ajustarAosPontos(map, pontos);
-
-        btnVoltar.setOnClickListener(v -> finish());
+        mapa.getOverlays().add(Mapa.criarLinha(pontos, Mapa.COR_PERCURSO, 10f));
+        Mapa.ajustarAosPontos(mapa, pontos);
 
         configurarGuardarRota(atividade);
-
         prepararVideoResumo(atividade);
     }
 
@@ -110,39 +112,27 @@ public class ResumoActivity extends AppCompatActivity {
         btnGuardarRota.setVisibility(View.VISIBLE);
         btnGuardarRota.setOnClickListener(v -> {
             // sem deslocação (ex.: emulador com localização fixa) não há percurso para guardar
-            if (atividade.getPercurso().size() < 2 || atividade.getDistanciaTotal() < 20) {
+            if (atividade.getPercurso().size() < 2 || atividade.getDistanciaTotal() < DISTANCIA_MINIMA_ROTA_M) {
                 Toast.makeText(this, R.string.resumo_percurso_curto, Toast.LENGTH_LONG).show();
                 return;
             }
-            final EditText etNome = new EditText(this);
-            etNome.setHint(R.string.planear_nome_hint);
-            new AlertDialog.Builder(this)
-                    .setTitle(R.string.planear_guardar_titulo)
-                    .setView(etNome)
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.guardar, (dialog, which) -> {
-                        String nome = etNome.getText().toString().trim();
-                        if (nome.isEmpty()) {
-                            nome = "Rota " + (RotasGuardadas.listarCriadas(this).size() + 1);
-                        }
-                        guardarRotaLivre(atividade, nome);
-                        btnGuardarRota.setEnabled(false);
-                        btnGuardarRota.setText(R.string.resumo_rota_guardada);
-                    })
-                    .show();
+            DialogoNomeRota.mostrar(this, nome -> {
+                guardarRotaLivre(atividade, nome);
+                btnGuardarRota.setEnabled(false);
+                btnGuardarRota.setText(R.string.resumo_rota_guardada);
+            });
         });
     }
 
+    /** Guarda o percurso (simplificado, para a rota ficar leve) como rota criada. */
     private void guardarRotaLivre(Atividade atividade, String nome) {
-        Rota rota = new Rota("criada_" + System.currentTimeMillis(), nome, Rota.Modo.CRIADA);
-        // menos pontos (um a cada 10 m, no máximo 500) para a rota ficar leve
-        for (PontoGPS p : SimplificarPercurso.simplificar(atividade.getPercurso(), 10, 500)) {
-            rota.adicionarPonto(new PontoGPS(p.getLatitude(), p.getLongitude(), p.getAltitude(), 0));
-        }
+        Rota rota = Rota.criada(nome, SimplificarPercurso.simplificar(atividade.getPercurso(),
+                DISTANCIA_MINIMA_PONTOS_M, MAXIMO_PONTOS_ROTA));
         RotasGuardadas.guardarCriada(this, rota);
         Toast.makeText(this, R.string.planear_guardada, Toast.LENGTH_SHORT).show();
     }
 
+    /** Mostra o vídeo resumo, ou gera-o a partir das fotos e vídeos do exercício. */
     private void prepararVideoResumo(final Atividade atividade) {
         VideoResumo existente = atividade.getVideoResumo();
         if (existente != null) {
@@ -165,7 +155,7 @@ public class ResumoActivity extends AppCompatActivity {
         }
 
         try {
-            GeradorVideoResumo.gerar(this, atividade.getMultimedia(), saida, new GeradorVideoResumo.Listener() {
+            GeradorVideoResumo.gerar(this, atividade.getMultimedia(), saida, new GeradorVideoResumo.AoTerminar() {
                 @Override
                 public void onConcluido(long duracaoMs) {
                     GestorExercicio.getInstance().setVideoResumo(new VideoResumo(saida.getAbsolutePath(), duracaoMs));
@@ -182,11 +172,12 @@ public class ResumoActivity extends AppCompatActivity {
         }
     }
 
+    /** Botão "Guardar vídeo na galeria": antes do Android 10 é preciso a permissão de escrita. */
     private void aoGuardarVideo() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
-            permissaoArmazenamentoLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            pedidoPermissaoArmazenamento.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
             return;
         }
         guardarVideoNaGaleria();
@@ -220,6 +211,7 @@ public class ResumoActivity extends AppCompatActivity {
         }).start();
     }
 
+    /** Mostra o vídeo resumo com os controlos de reprodução e o botão de guardar na galeria. */
     private void mostrarVideo(String caminho) {
         caminhoVideo = caminho;
         btnGuardarVideo.setVisibility(View.VISIBLE);
@@ -233,18 +225,18 @@ public class ResumoActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        map.onResume();
+        mapa.onResume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        map.onPause();
+        mapa.onPause();
     }
 
     @Override
     protected void onDestroy() {
-        map.onDetach();
+        mapa.onDetach();
         super.onDestroy();
     }
 }

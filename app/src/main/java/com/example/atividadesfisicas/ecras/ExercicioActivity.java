@@ -4,12 +4,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -18,9 +15,7 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.FileProvider;
 
 import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.dados.GestorExercicio;
@@ -28,16 +23,11 @@ import com.example.atividadesfisicas.dados.HistoricoGuardado;
 import com.example.atividadesfisicas.dados.RotasGuardadas;
 import com.example.atividadesfisicas.localizacao.ServicoGps;
 import com.example.atividadesfisicas.mapa.Mapa;
-import com.example.atividadesfisicas.multimedia.MetricasFoto;
-import com.example.atividadesfisicas.multimedia.MetricasVideo;
 import com.example.atividadesfisicas.modelo.AvisoDesvio;
-import com.example.atividadesfisicas.modelo.Foto;
 import com.example.atividadesfisicas.modelo.LembreteMultimedia;
 import com.example.atividadesfisicas.modelo.PontoGPS;
 import com.example.atividadesfisicas.modelo.Rota;
 import com.example.atividadesfisicas.modelo.Telemetria;
-import com.example.atividadesfisicas.modelo.Video;
-import com.example.atividadesfisicas.modelo.VideoComTelemetria;
 import com.example.atividadesfisicas.utilitarios.Formatacao;
 import com.example.atividadesfisicas.utilitarios.Permissoes;
 
@@ -46,20 +36,18 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Ecrã da corrida/caminhada.
- * UC2 Iniciar atividade, UC3/UC4/UC5 (modos de rota), UC6 Consultar telemetria, UC7 Tirar foto,
- * UC8 Gravar vídeo com telemetria, UC9 Terminar atividade, UC10 Alerta de desvio, UC11 Lembrete multimédia.
+ * UC2 Iniciar atividade, UC3/UC4/UC5 (modos de rota), UC6 Consultar telemetria, UC9 Terminar atividade,
+ * UC10 Alerta de desvio e UC11 Lembrete multimédia. As fotos e vídeos (UC7, UC8) estão na CapturaMultimedia.
  *
- * Tem dois estados: preparação (mostra o mapa, a rota escolhida e a posição do utilizador, com o botão
- * "Iniciar atividade") e atividade em curso (telemetria, fotos, vídeos e "Terminar").
- * O ecrã atualiza-se a cada segundo com um Handler (aula T4) a partir do GestorExercicio.
+ * Tem dois estados: preparação (mapa, rota escolhida e posição do utilizador, com o botão
+ * "Iniciar atividade") e exercício em curso (telemetria, fotos, vídeos e "Terminar").
+ * O ecrã atualiza-se a cada segundo com um Handler, a partir do GestorExercicio.
  */
 public class ExercicioActivity extends AppCompatActivity {
 
@@ -67,13 +55,16 @@ public class ExercicioActivity extends AppCompatActivity {
     public static final String EXTRA_ROTA_ID = "rota_id";
 
     private static final long PERIODO_ATUALIZACAO_MS = 1000L;
-    private static final int COR_PLANEADA = 0xFF1565C0;
-    private static final int COR_PERCURSO = 0xFFD32F2F;
+    private static final int COR_BANNER_LEMBRETE = 0xFF1565C0;
+    private static final int COR_BANNER_DESVIO = 0xFFD32F2F;
+    private static final long DURACAO_BANNER_LEMBRETE_MS = 6000;
+    private static final long DURACAO_BANNER_DESVIO_MS = 5000;
 
-    private final GestorExercicio manager = GestorExercicio.getInstance();
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final GestorExercicio gestor = GestorExercicio.getInstance();
+    private final Handler agendador = new Handler(Looper.getMainLooper());
+    private final CapturaMultimedia captura = new CapturaMultimedia(this);
 
-    private MapView map;
+    private MapView mapa;
     private TextView tvTempo;
     private TextView tvVelocidade;
     private TextView tvAltitude;
@@ -87,26 +78,11 @@ public class ExercicioActivity extends AppCompatActivity {
     private MyLocationNewOverlay minhaLocalizacao;
     private boolean mapaPreparado = false;
 
+    // instantes do último lembrete e do último aviso já mostrados (para mostrar cada banner uma só vez)
     private long ultimoLembreteMostrado = 0;
     private long ultimoAvisoMostrado = 0;
 
-    // capturas em processamento (fotos/vídeos): não deixa terminar até acabarem
-    private int processamentosPendentes = 0;
-    private File ficheiroPendente;
-    private Telemetria telemetriaPendente;
-
-    /** Pede ao Android a gravação de vídeo na qualidade máxima (por omissão pode ser baixa). */
-    private static class CapturarVideoQualidadeMaxima extends ActivityResultContracts.CaptureVideo {
-        @NonNull
-        @Override
-        public Intent createIntent(@NonNull Context context, @NonNull Uri input) {
-            Intent intent = super.createIntent(context, input);
-            intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
-            return intent;
-        }
-    }
-
-    private final ActivityResultLauncher<String[]> permissoesLauncher = registerForActivityResult(
+    private final ActivityResultLauncher<String[]> pedidoPermissoes = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
             (Map<String, Boolean> resultado) -> {
                 if (Permissoes.temLocalizacao(this)) {
@@ -119,24 +95,14 @@ public class ExercicioActivity extends AppCompatActivity {
                 }
             });
 
-    private final ActivityResultLauncher<Uri> fotoLauncher = registerForActivityResult(
-            new ActivityResultContracts.TakePicture(), sucesso -> aoFotoTirada(sucesso));
+    private final Runnable esconderBanner = () -> tvBanner.setVisibility(View.GONE);
 
-    private final ActivityResultLauncher<Uri> videoLauncher = registerForActivityResult(
-            new CapturarVideoQualidadeMaxima(), sucesso -> aoVideoGravado(sucesso));
-
-    private final Runnable esconderBanner = new Runnable() {
-        @Override
-        public void run() {
-            tvBanner.setVisibility(View.GONE);
-        }
-    };
-
-    private final Runnable tick = new Runnable() {
+    /** Atualização a cada segundo. Classe anónima (e não lambda) porque se volta a agendar com "this". */
+    private final Runnable atualizacao = new Runnable() {
         @Override
         public void run() {
             atualizarEcra();
-            handler.postDelayed(this, PERIODO_ATUALIZACAO_MS);
+            agendador.postDelayed(this, PERIODO_ATUALIZACAO_MS);
         }
     };
 
@@ -146,7 +112,7 @@ public class ExercicioActivity extends AppCompatActivity {
         Mapa.inicializar(getApplicationContext());
         setContentView(R.layout.activity_exercicio);
 
-        map = findViewById(R.id.map);
+        mapa = findViewById(R.id.map);
         tvTempo = findViewById(R.id.tvTempo);
         tvVelocidade = findViewById(R.id.tvVelocidade);
         tvAltitude = findViewById(R.id.tvAltitude);
@@ -158,13 +124,13 @@ public class ExercicioActivity extends AppCompatActivity {
         Button btnVideo = findViewById(R.id.btnVideo);
         Button btnTerminar = findViewById(R.id.btnTerminar);
 
-        Mapa.configurar(map, 17.0);
+        Mapa.configurar(mapa, 17.0);
 
-        // durante a atividade o botão "Voltar" não sai: é preciso usar "Terminar atividade"
+        // durante o exercício o botão "Voltar" não sai: é preciso usar "Terminar"
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (manager.isAtiva()) {
+                if (gestor.isAtiva()) {
                     Toast.makeText(ExercicioActivity.this, R.string.atividade_usar_terminar,
                             Toast.LENGTH_SHORT).show();
                 } else {
@@ -173,52 +139,52 @@ public class ExercicioActivity extends AppCompatActivity {
             }
         });
 
-        btnIniciar.setOnClickListener(v -> iniciarAtividade());
-        btnFoto.setOnClickListener(v -> tirarFoto());
-        btnVideo.setOnClickListener(v -> gravarVideo());
-        btnTerminar.setOnClickListener(v -> terminarAtividade());
+        btnIniciar.setOnClickListener(v -> iniciarExercicio());
+        btnFoto.setOnClickListener(v -> captura.tirarFoto());
+        btnVideo.setOnClickListener(v -> captura.gravarVideo());
+        btnTerminar.setOnClickListener(v -> terminarExercicio());
 
-        LembreteMultimedia ultimoLembrete = manager.getUltimoLembrete();
+        LembreteMultimedia ultimoLembrete = gestor.getUltimoLembrete();
         if (ultimoLembrete != null) {
             ultimoLembreteMostrado = ultimoLembrete.getInstante();
         }
 
-        if (manager.isAtiva()) {
-            // voltou a um ecrã de uma atividade já em curso
-            rota = manager.getAtual().getRota();
-            mostrarModoAtividade();
+        if (gestor.isAtiva()) {
+            // voltou ao ecrã de um exercício já em curso (por exemplo, pela notificação)
+            rota = gestor.getAtual().getRota();
+            mostrarEstadoEmCurso();
             prepararMapa();
         } else {
-            rota = resolverRota();
+            rota = obterRotaEscolhida();
             if (rota == null) {
                 Toast.makeText(this, R.string.atividade_rota_nao_encontrada, Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
-            mostrarModoPreparacao();
+            mostrarEstadoPreparacao();
             if (Permissoes.temLocalizacao(this) && Permissoes.temNotificacoes(this)) {
                 prepararMapa();
             } else {
-                permissoesLauncher.launch(Permissoes.permissoesPedidas());
+                pedidoPermissoes.launch(Permissoes.permissoesPedidas());
             }
         }
     }
 
-    /** Descobre que rota seguir a partir do Intent (modo livre cria uma rota vazia). */
-    private Rota resolverRota() {
+    /** Descobre que rota seguir a partir do Intent (o modo livre cria uma rota vazia). */
+    private Rota obterRotaEscolhida() {
         String modoTexto = getIntent().getStringExtra(EXTRA_MODO);
         if (modoTexto == null) {
             return null;
         }
         Rota.Modo modo = Rota.Modo.valueOf(modoTexto);
         if (modo == Rota.Modo.LIVRE) {
-            return new Rota("livre_" + System.currentTimeMillis(), "Percurso livre", Rota.Modo.LIVRE);
+            return new Rota("livre_" + System.currentTimeMillis(), getString(R.string.rota_livre_nome), Rota.Modo.LIVRE);
         }
         return RotasGuardadas.procurar(this, modo, getIntent().getStringExtra(EXTRA_ROTA_ID));
     }
 
     /** Estado antes de começar: botão "Iniciar atividade" e mensagem sobre o modo escolhido. */
-    private void mostrarModoPreparacao() {
+    private void mostrarEstadoPreparacao() {
         btnIniciar.setVisibility(View.VISIBLE);
         linhaAcoes.setVisibility(View.GONE);
         tvInfo.setVisibility(View.VISIBLE);
@@ -229,254 +195,120 @@ public class ExercicioActivity extends AppCompatActivity {
         }
     }
 
-    /** Estado com a atividade a decorrer: fotos, vídeos e "Terminar". */
-    private void mostrarModoAtividade() {
+    /** Estado com o exercício a decorrer: fotos, vídeos e "Terminar". */
+    private void mostrarEstadoEmCurso() {
         btnIniciar.setVisibility(View.GONE);
         linhaAcoes.setVisibility(View.VISIBLE);
         tvInfo.setVisibility(View.GONE);
     }
 
-    /** UC2: arranca o registo da atividade e o serviço de GPS (ao carregar em "Iniciar atividade"). */
-    private void iniciarAtividade() {
-        if (manager.isAtiva()) {
+    /** UC2: arranca o registo do exercício e o serviço de GPS (ao carregar em "Iniciar atividade"). */
+    private void iniciarExercicio() {
+        if (gestor.isAtiva()) {
             return;
         }
         if (!Permissoes.temLocalizacao(this)) {
-            permissoesLauncher.launch(Permissoes.permissoesPedidas());
+            pedidoPermissoes.launch(Permissoes.permissoesPedidas());
             return;
         }
         if (!mapaPreparado) {
             prepararMapa();
         }
-        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (lm != null && !lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        LocationManager gestorLocalizacao = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (gestorLocalizacao != null && !gestorLocalizacao.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             Toast.makeText(this, R.string.atividade_ativar_gps, Toast.LENGTH_LONG).show();
         }
-        manager.iniciar(rota);
+        gestor.iniciar(rota);
         ServicoGps.iniciar(this);
-        mostrarModoAtividade();
+        mostrarEstadoEmCurso();
         if (minhaLocalizacao != null) {
             minhaLocalizacao.enableFollowLocation();
         }
-        handler.removeCallbacks(tick);
-        handler.post(tick);
+        agendador.removeCallbacks(atualizacao);
+        agendador.post(atualizacao);
     }
 
+    /** Desenha a rota planeada (se houver), a linha do percurso e o ícone do utilizador. */
     private void prepararMapa() {
-        map.getOverlays().clear();
+        mapa.getOverlays().clear();
 
         if (rota.getModo() != Rota.Modo.LIVRE && !rota.getPontos().isEmpty()) {
             List<GeoPoint> planeada = Mapa.paraGeoPoints(rota.getPontos());
-            map.getOverlays().add(Mapa.criarLinha(planeada, COR_PLANEADA, 12f));
-            Mapa.ajustarAosPontos(map, planeada);
+            mapa.getOverlays().add(Mapa.criarLinha(planeada, Mapa.COR_ROTA_PLANEADA, 12f));
+            Mapa.ajustarAosPontos(mapa, planeada);
         } else {
-            GeoPoint pos = Mapa.ultimaPosicaoConhecida(this);
-            if (pos != null) {
-                Mapa.centrar(map, pos);
+            GeoPoint posicao = Mapa.ultimaPosicaoConhecida(this);
+            if (posicao != null) {
+                Mapa.centrar(mapa, posicao);
             }
         }
 
-        linhaPercurso = Mapa.criarLinha(new ArrayList<GeoPoint>(), COR_PERCURSO, 10f);
-        map.getOverlays().add(linhaPercurso);
+        linhaPercurso = Mapa.criarLinha(new ArrayList<GeoPoint>(), Mapa.COR_PERCURSO, 10f);
+        mapa.getOverlays().add(linhaPercurso);
 
-        // ícone da posição do utilizador: fica sempre visível e acompanha-o durante a atividade;
         // nas rotas, antes de começar, o mapa mostra a rota inteira em vez de seguir o utilizador
-        boolean seguir = manager.isAtiva() || rota.getModo() == Rota.Modo.LIVRE;
-        minhaLocalizacao = Mapa.adicionarMinhaLocalizacao(this, map, seguir);
+        boolean seguir = gestor.isAtiva() || rota.getModo() == Rota.Modo.LIVRE;
+        minhaLocalizacao = Mapa.adicionarMinhaLocalizacao(this, mapa, seguir);
         mapaPreparado = true;
-        map.invalidate();
+        mapa.invalidate();
     }
 
     /** Corre a cada segundo: telemetria (UC6), percurso, lembretes (UC11) e avisos de desvio (UC10). */
     private void atualizarEcra() {
-        if (!manager.isAtiva() || linhaPercurso == null) {
+        if (!gestor.isAtiva() || linhaPercurso == null) {
             return;
         }
-        long tempoMs = manager.getTempoDecorridoMs();
-        tvTempo.setText(Formatacao.formatarTempo(tempoMs));
+        tvTempo.setText(Formatacao.formatarTempo(gestor.getTempoDecorridoMs()));
 
-        Telemetria t = manager.getTelemetriaAtual();
+        Telemetria t = gestor.getTelemetriaAtual();
         if (t != null) {
             tvVelocidade.setText(Formatacao.formatarVelocidade(t.getVelocidadeKmh()));
             tvAltitude.setText(Formatacao.formatarAltitude(t.getAltitude()));
         }
 
-        List<PontoGPS> percurso = manager.copiaPercurso();
+        List<PontoGPS> percurso = gestor.copiaPercurso();
         if (!percurso.isEmpty()) {
             linhaPercurso.setPoints(Mapa.paraGeoPoints(percurso));
-            map.invalidate();
+            mapa.invalidate();
         }
 
-        // UC11: o lembrete (notificação + vibração) é emitido pelo ServicoGps; aqui só se mostra o banner
-        LembreteMultimedia lembrete = manager.getUltimoLembrete();
+        // UC11: a notificação e a vibração já foram feitas pelo ServicoGps; aqui só se mostra o banner
+        LembreteMultimedia lembrete = gestor.getUltimoLembrete();
         if (lembrete != null && lembrete.getInstante() > ultimoLembreteMostrado) {
             ultimoLembreteMostrado = lembrete.getInstante();
-            mostrarBanner(getString(R.string.atividade_lembrete), 6000, 0xFF1565C0);
+            mostrarBanner(getString(R.string.atividade_lembrete), DURACAO_BANNER_LEMBRETE_MS, COR_BANNER_LEMBRETE);
         }
 
-        // UC10: aviso de desvio (a vibração e a notificação já foram feitas pelo serviço)
-        AvisoDesvio aviso = manager.getUltimoAviso();
+        // UC10: o mesmo para o aviso de desvio
+        AvisoDesvio aviso = gestor.getUltimoAviso();
         if (aviso != null && aviso.getInstante() > ultimoAvisoMostrado) {
             ultimoAvisoMostrado = aviso.getInstante();
-            mostrarBanner(getString(R.string.atividade_desvio), 5000, 0xFFD32F2F);
+            mostrarBanner(getString(R.string.atividade_desvio), DURACAO_BANNER_DESVIO_MS, COR_BANNER_DESVIO);
         }
     }
 
+    /** Mostra o banner no topo durante duracaoMs (um banner novo reinicia o tempo). */
     private void mostrarBanner(String texto, long duracaoMs, int cor) {
         tvBanner.setText(texto);
         tvBanner.setBackgroundColor(cor);
         tvBanner.setTextColor(Color.WHITE);
         tvBanner.setVisibility(View.VISIBLE);
-        handler.removeCallbacks(esconderBanner);
-        handler.postDelayed(esconderBanner, duracaoMs);
+        agendador.removeCallbacks(esconderBanner);
+        agendador.postDelayed(esconderBanner, duracaoMs);
     }
 
-    // ------------------------------------------------------------------ UC7 Tirar foto
-
-    private void tirarFoto() {
-        if (!manager.isAtiva()) {
-            return;
-        }
-        File ficheiro = novoFicheiro("foto_", ".jpg", Environment.DIRECTORY_PICTURES);
-        ficheiroPendente = ficheiro;
-        telemetriaPendente = manager.getTelemetriaAtual();
-        fotoLauncher.launch(uriDe(ficheiro));
-    }
-
-    private void aoFotoTirada(boolean sucesso) {
-        final File ficheiro = ficheiroPendente;
-        final Telemetria telemetria = telemetriaPendente;
-        ficheiroPendente = null;
-        if (ficheiro == null) {
-            return;
-        }
-        if (!sucesso) {
-            ficheiro.delete();
-            return;
-        }
-
-        processamentosPendentes++;
-        new Thread() {
-            @Override
-            public void run() {
-                boolean comMetricas = true;
-                try {
-                    MetricasFoto.aplicar(ficheiro, telemetria);
-                } catch (IOException e) {
-                    comMetricas = false;
-                }
-                final boolean ok = comMetricas;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        processamentosPendentes--;
-                        manager.adicionarMultimedia(new Foto(ficheiro.getAbsolutePath(), System.currentTimeMillis()));
-                        Toast.makeText(ExercicioActivity.this,
-                                ok ? R.string.atividade_foto_guardada : R.string.atividade_foto_sem_metricas,
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        }.start();
-    }
-
-    // ------------------------------------------------------------------ UC8 Gravar vídeo com telemetria
-
-    private void gravarVideo() {
-        if (!manager.isAtiva()) {
-            return;
-        }
-        File ficheiro = novoFicheiro("video_", ".mp4", Environment.DIRECTORY_MOVIES);
-        ficheiroPendente = ficheiro;
-        videoLauncher.launch(uriDe(ficheiro));
-    }
-
-    private void aoVideoGravado(boolean sucesso) {
-        final File original = ficheiroPendente;
-        ficheiroPendente = null;
-        if (original == null) {
-            return;
-        }
-        if (!sucesso || !original.exists() || original.length() == 0) {
-            original.delete();
-            return;
-        }
-
-        // o vídeo acabou agora; o início calcula-se a partir da duração
-        final long fim = System.currentTimeMillis();
-        final long duracao = MetricasVideo.duracaoMs(original);
-        final long inicio = fim - duracao;
-        final List<Telemetria> amostras = manager.copiaTelemetria();
-        final File saida = novoFicheiro("video_tel_", ".mp4", Environment.DIRECTORY_MOVIES);
-
-        processamentosPendentes++;
-        Toast.makeText(this, R.string.atividade_video_a_processar, Toast.LENGTH_SHORT).show();
-
-        try {
-            MetricasVideo.processar(this, original, saida, amostras, inicio,
-                    new MetricasVideo.Listener() {
-                        @Override
-                        public void onConcluido() {
-                            processamentosPendentes--;
-                            manager.adicionarMultimedia(
-                                    new VideoComTelemetria(saida.getAbsolutePath(), fim, duracao));
-                            original.delete();
-                            Toast.makeText(ExercicioActivity.this, R.string.atividade_video_guardado,
-                                    Toast.LENGTH_SHORT).show();
-                        }
-
-                        @Override
-                        public void onErro(Exception e) {
-                            guardarVideoSemMetricas(original, fim, duracao);
-                        }
-                    });
-        } catch (RuntimeException e) {
-            guardarVideoSemMetricas(original, fim, duracao);
-        }
-    }
-
-    private void guardarVideoSemMetricas(File original, long fim, long duracao) {
-        processamentosPendentes--;
-        manager.adicionarMultimedia(new Video(original.getAbsolutePath(), fim, duracao));
-        Toast.makeText(this, R.string.atividade_video_sem_metricas, Toast.LENGTH_LONG).show();
-    }
-
-    // ------------------------------------------------------------------ UC9 Terminar atividade
-
-    private void terminarAtividade() {
-        if (processamentosPendentes > 0) {
+    /** UC9: termina o exercício, guarda-o no histórico e abre o resumo. */
+    private void terminarExercicio() {
+        if (captura.temProcessamentosPendentes()) {
             Toast.makeText(this, R.string.atividade_a_processar, Toast.LENGTH_SHORT).show();
             return;
         }
-        handler.removeCallbacks(tick);
+        agendador.removeCallbacks(atualizacao);
         ServicoGps.parar(this);
-        manager.terminar();
-        // guarda a atividade no histórico (local e na cloud)
-        HistoricoGuardado.guardar(getApplicationContext(), manager.getAtual());
+        gestor.terminar();
+        HistoricoGuardado.guardar(getApplicationContext(), gestor.getAtual());
         startActivity(new Intent(this, ResumoActivity.class));
         finish();
-    }
-
-    // ------------------------------------------------------------------ ficheiros
-
-    private File novoFicheiro(String prefixo, String sufixo, String tipoPasta) {
-        File base = getExternalFilesDir(tipoPasta);
-        if (base == null) {
-            base = getFilesDir();
-        }
-        File pasta = new File(base, "atividade_" + manager.getAtual().getDataHoraInicio());
-        pasta.mkdirs();
-        File ficheiro = new File(pasta, prefixo + System.currentTimeMillis() + sufixo);
-        try {
-            ficheiro.createNewFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return ficheiro;
-    }
-
-    private Uri uriDe(File ficheiro) {
-        return FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", ficheiro);
     }
 
     // ------------------------------------------------------------------ ciclo de vida
@@ -484,30 +316,31 @@ public class ExercicioActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        map.onResume();
+        mapa.onResume();
         if (minhaLocalizacao != null) {
             minhaLocalizacao.enableMyLocation();
         }
-        if (manager.isAtiva() && linhaPercurso != null) {
-            handler.removeCallbacks(tick);
-            handler.post(tick);
+        if (gestor.isAtiva() && linhaPercurso != null) {
+            agendador.removeCallbacks(atualizacao);
+            agendador.post(atualizacao);
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        map.onPause();
+        mapa.onPause();
         if (minhaLocalizacao != null) {
             minhaLocalizacao.disableMyLocation();
         }
-        handler.removeCallbacks(tick);
+        // o ServicoGps continua a registar o percurso; só o ecrã deixa de se atualizar
+        agendador.removeCallbacks(atualizacao);
     }
 
     @Override
     protected void onDestroy() {
-        handler.removeCallbacksAndMessages(null);
-        map.onDetach();
+        agendador.removeCallbacksAndMessages(null);
+        mapa.onDetach();
         super.onDestroy();
     }
 }

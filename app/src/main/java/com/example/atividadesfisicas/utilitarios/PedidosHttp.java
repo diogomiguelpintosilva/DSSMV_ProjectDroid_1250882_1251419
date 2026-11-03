@@ -54,6 +54,7 @@ public final class PedidosHttp {
             }
             ligacao = (HttpURLConnection) ligacaoUrl;
             ligacao.setRequestMethod(metodo);
+            ligacao.setRequestProperty("User-Agent", Config.USER_AGENT_MAPA);
             if (tipoCorpo != null) {
                 ligacao.setRequestProperty("Content-Type", tipoCorpo);
             }

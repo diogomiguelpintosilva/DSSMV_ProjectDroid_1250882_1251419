@@ -102,4 +102,12 @@
     <string name="historico_rota">Rota: %1$s</string>
     <string name="historico_avisos">Avisos de desvio: %1$d</string>
     <string name="historico_capturas">Fotos: %1$d · Vídeos: %2$d</string>
+
+
+    <!-- Passar as rotas para as ruas -->
+    <string name="atividade_a_calcular_rota">A calcular a rota pelas ruas...</string>
+    <string name="rota_sem_ruas">Sem ligação ao serviço de rotas: a rota aparece em linha reta.</string>
+    <string name="planear_maximo_pontos">No máximo %1$d pontos por rota.</string>
+    <string name="atividade_centrar">Centrar o mapa em mim</string>
+    <string name="mapa_sem_localizacao">Ainda sem localização GPS. No emulador, defina uma localização na janela Extended controls, separador Location.</string>
 </resources>

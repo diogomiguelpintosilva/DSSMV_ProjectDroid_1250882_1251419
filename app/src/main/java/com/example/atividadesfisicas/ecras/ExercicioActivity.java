@@ -21,6 +21,7 @@ import com.example.atividadesfisicas.R;
 import com.example.atividadesfisicas.dados.GestorExercicio;
 import com.example.atividadesfisicas.dados.HistoricoGuardado;
 import com.example.atividadesfisicas.dados.RotasGuardadas;
+import com.example.atividadesfisicas.dados.RoteamentoRuas;
 import com.example.atividadesfisicas.localizacao.ServicoGps;
 import com.example.atividadesfisicas.mapa.Mapa;
 import com.example.atividadesfisicas.modelo.AvisoDesvio;
@@ -36,12 +37,10 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import com.example.atividadesfisicas.dados.RoteamentoRuas;
-import java.io.IOException;
 
 /**
  * Ecrã da corrida/caminhada.
@@ -77,8 +76,8 @@ public class ExercicioActivity extends AppCompatActivity {
     private View linhaAcoes;
 
     private Rota rota;
-    private Polyline linhaPercurso;
     private Polyline linhaPlaneada;
+    private Polyline linhaPercurso;
     private MyLocationNewOverlay minhaLocalizacao;
     private boolean mapaPreparado = false;
 
@@ -169,6 +168,7 @@ public class ExercicioActivity extends AppCompatActivity {
                 return;
             }
             mostrarEstadoPreparacao();
+            calcularRotaPorRuas();
             if (Permissoes.temLocalizacao(this) && Permissoes.temNotificacoes(this)) {
                 prepararMapa();
             } else {
@@ -191,9 +191,7 @@ public class ExercicioActivity extends AppCompatActivity {
     }
 
     /** Estado antes de começar: botão "Iniciar atividade" e mensagem sobre o modo escolhido. */
-    private void mostrarEstadoPreparacao()
-    calcularRotaPorRuas();
-    if (Permissoes.temLocalizacao(this) && Permissoes.temNotificacoes(this)){
+    private void mostrarEstadoPreparacao() {
         btnIniciar.setVisibility(View.VISIBLE);
         linhaAcoes.setVisibility(View.GONE);
         tvInfo.setVisibility(View.VISIBLE);
@@ -252,7 +250,6 @@ public class ExercicioActivity extends AppCompatActivity {
             });
         }).start();
     }
-
 
     /** UC2: arranca o registo do exercício e o serviço de GPS (ao carregar em "Iniciar atividade"). */
     private void iniciarExercicio() {

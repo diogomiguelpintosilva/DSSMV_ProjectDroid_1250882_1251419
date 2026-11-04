@@ -29,6 +29,7 @@ final class DialogoNomeRota {
         new AlertDialog.Builder(ecra)
                 .setTitle(R.string.planear_guardar_titulo)
                 .setView(campoNome)
+                .setCancelable(false)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.guardar, (dialogo, botao) -> {
                     String nome = campoNome.getText().toString().trim();

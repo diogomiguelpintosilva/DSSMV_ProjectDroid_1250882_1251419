@@ -27,6 +27,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.widget.Toast;
+import com.example.atividadesfisicas.R;
+
 /**
  * Tudo o que depende da biblioteca de mapas (OpenStreetMap / osmdroid) está aqui,
  * para ser fácil trocar de biblioteca (ex.: Google Maps) mexendo só neste ficheiro.
@@ -126,6 +129,16 @@ public final class Mapa {
 
     public static void centrar(MapView mapa, GeoPoint ponto) {
         mapa.getController().setCenter(ponto);
+    }
+
+    /** Centra o mapa na posição do utilizador (botão "centrar"). Sem posição GPS, explica porquê. */
+    public static void centrarNoUtilizador(Context ctx, MapView mapa, MyLocationNewOverlay camada) {
+        GeoPoint posicao = (camada == null) ? null : camada.getMyLocation();
+        if (posicao == null) {
+            Toast.makeText(ctx, R.string.mapa_sem_localizacao, Toast.LENGTH_LONG).show();
+            return;
+        }
+        mapa.getController().animateTo(posicao);
     }
 
     /**

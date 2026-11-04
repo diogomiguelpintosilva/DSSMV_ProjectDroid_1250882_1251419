@@ -12,11 +12,26 @@
             android:padding="12dp"
             android:textSize="16sp" />
 
-    <org.osmdroid.views.MapView
-            android:id="@+id/map"
+    <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1">
+
+        <org.osmdroid.views.MapView
+                android:id="@+id/map"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        <ImageButton
+                android:id="@+id/btnCentrar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|bottom"
+                android:layout_margin="12dp"
+                android:background="#CCFFFFFF"
+                android:contentDescription="@string/atividade_centrar"
+                android:src="@android:drawable/ic_menu_mylocation" />
+    </FrameLayout>
 
     <LinearLayout
             android:layout_width="match_parent"

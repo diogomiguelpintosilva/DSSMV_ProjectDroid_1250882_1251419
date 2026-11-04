@@ -24,6 +24,10 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.example.atividadesfisicas.dados.RoteamentoRuas;
+import com.example.atividadesfisicas.utilitarios.SimplificarPercurso;
+import java.io.IOException;
+
 /**
  * UC1 Planear rota: o utilizador toca no mapa para desenhar a rota e depois guarda-a com um nome.
  */
@@ -39,6 +43,13 @@ public class PlanearRotaActivity extends AppCompatActivity {
     // listas paralelas: o ponto i corresponde ao marcador i
     private final List<GeoPoint> pontos = new ArrayList<>();
     private final List<Marker> marcadores = new ArrayList<>();
+
+    /** Máximo de pontos por rota (o serviço de rotas aceita poucos pontos por pedido). */
+    private static final int MAXIMO_PONTOS = 25;
+    // percurso pelas ruas já calculado para os pontos atuais (null enquanto não chega a resposta)
+    private List<PontoGPS> percursoPorRuas;
+    // aumenta a cada alteração aos pontos, para ignorar respostas antigas
+    private int versaoPedido = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +86,7 @@ public class PlanearRotaActivity extends AppCompatActivity {
 
         // ícone da posição do utilizador (o mapa centra-se nele quando há posição)
         minhaLocalizacao = Mapa.adicionarMinhaLocalizacao(this, mapa, true);
+        findViewById(R.id.btnCentrar).setOnClickListener(v -> Mapa.centrarNoUtilizador(this, mapa, minhaLocalizacao));
 
         btnDesfazer.setOnClickListener(v -> desfazerUltimoPonto());
         btnGuardar.setOnClickListener(v -> pedirNomeEGuardar());
@@ -82,6 +94,11 @@ public class PlanearRotaActivity extends AppCompatActivity {
     }
 
     private void adicionarPonto(GeoPoint p) {
+        if (pontos.size() >= MAXIMO_PONTOS) {
+            Toast.makeText(this, getString(R.string.planear_maximo_pontos, MAXIMO_PONTOS),
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         pontos.add(p);
         Marker marcador = new Marker(mapa);
         marcador.setPosition(p);
@@ -103,9 +120,42 @@ public class PlanearRotaActivity extends AppCompatActivity {
     }
 
     private void atualizarLinha() {
+        // mostra já uma linha reta, enquanto o percurso pelas ruas não chega
         linha.setPoints(new ArrayList<>(pontos));
         mapa.invalidate();
         atualizarInfo();
+
+        percursoPorRuas = null;
+        versaoPedido++;
+        if (pontos.size() < 2) {
+            return;
+        }
+
+        final int versao = versaoPedido;
+        final List<PontoGPS> pontosChave = new ArrayList<>();
+        for (GeoPoint p : pontos) {
+            pontosChave.add(new PontoGPS(p.getLatitude(), p.getLongitude(), 0, 0));
+        }
+        new Thread(() -> {
+            try {
+                final List<PontoGPS> ruas = RoteamentoRuas.porRuas(pontosChave);
+                runOnUiThread(() -> {
+                    // ignora respostas antigas: o utilizador já mexeu nos pontos entretanto
+                    if (versao != versaoPedido || isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    percursoPorRuas = ruas;
+                    linha.setPoints(Mapa.paraGeoPoints(ruas));
+                    mapa.invalidate();
+                });
+            } catch (IOException e) {
+                runOnUiThread(() -> {
+                    if (versao == versaoPedido && !isFinishing() && !isDestroyed()) {
+                        Toast.makeText(this, R.string.rota_sem_ruas, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }).start();
     }
 
     private void atualizarInfo() {
@@ -122,8 +172,14 @@ public class PlanearRotaActivity extends AppCompatActivity {
 
     private void guardar(String nome) {
         List<PontoGPS> pontosRota = new ArrayList<>();
-        for (GeoPoint p : pontos) {
-            pontosRota.add(new PontoGPS(p.getLatitude(), p.getLongitude(), 0, 0));
+        if (percursoPorRuas != null) {
+            // o percurso pelas ruas, reduzido para a rota ficar leve
+            pontosRota = SimplificarPercurso.simplificar(percursoPorRuas, 5, 800);
+        } else {
+            // o percurso ainda não chegou: guarda os pontos marcados (serão ligados pelas ruas ao iniciar)
+            for (GeoPoint p : pontos) {
+                pontosRota.add(new PontoGPS(p.getLatitude(), p.getLongitude(), 0, 0));
+            }
         }
         RotasGuardadas.guardarCriada(this, Rota.criada(nome, pontosRota));
         Toast.makeText(this, R.string.planear_guardada, Toast.LENGTH_SHORT).show();

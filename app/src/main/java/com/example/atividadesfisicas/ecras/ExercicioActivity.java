@@ -40,6 +40,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.example.atividadesfisicas.dados.RoteamentoRuas;
+import java.io.IOException;
+
 /**
  * Ecrã da corrida/caminhada.
  * UC2 Iniciar atividade, UC3/UC4/UC5 (modos de rota), UC6 Consultar telemetria, UC9 Terminar atividade,
@@ -75,6 +78,7 @@ public class ExercicioActivity extends AppCompatActivity {
 
     private Rota rota;
     private Polyline linhaPercurso;
+    private Polyline linhaPlaneada;
     private MyLocationNewOverlay minhaLocalizacao;
     private boolean mapaPreparado = false;
 
@@ -144,6 +148,9 @@ public class ExercicioActivity extends AppCompatActivity {
         btnVideo.setOnClickListener(v -> captura.gravarVideo());
         btnTerminar.setOnClickListener(v -> terminarExercicio());
 
+        View btnCentrar = findViewById(R.id.btnCentrar);
+        btnCentrar.setOnClickListener(v -> Mapa.centrarNoUtilizador(this, mapa, minhaLocalizacao));
+
         LembreteMultimedia ultimoLembrete = gestor.getUltimoLembrete();
         if (ultimoLembrete != null) {
             ultimoLembreteMostrado = ultimoLembrete.getInstante();
@@ -184,7 +191,9 @@ public class ExercicioActivity extends AppCompatActivity {
     }
 
     /** Estado antes de começar: botão "Iniciar atividade" e mensagem sobre o modo escolhido. */
-    private void mostrarEstadoPreparacao() {
+    private void mostrarEstadoPreparacao()
+    calcularRotaPorRuas();
+    if (Permissoes.temLocalizacao(this) && Permissoes.temNotificacoes(this)){
         btnIniciar.setVisibility(View.VISIBLE);
         linhaAcoes.setVisibility(View.GONE);
         tvInfo.setVisibility(View.VISIBLE);
@@ -201,6 +210,49 @@ public class ExercicioActivity extends AppCompatActivity {
         linhaAcoes.setVisibility(View.VISIBLE);
         tvInfo.setVisibility(View.GONE);
     }
+
+    /**
+     * Troca os pontos da rota por um percurso que segue as ruas (pedido HTTP ao serviço de rotas).
+     * Enquanto calcula, o botão Iniciar fica desativado; se falhar, a rota fica em linha reta.
+     */
+    private void calcularRotaPorRuas() {
+        if (rota.getModo() == Rota.Modo.LIVRE || rota.getPontos().size() < 2) {
+            return;
+        }
+        btnIniciar.setEnabled(false);
+        tvInfo.setText(R.string.atividade_a_calcular_rota);
+
+        final List<PontoGPS> pontosOriginais = new ArrayList<>(rota.getPontos());
+        new Thread(() -> {
+            List<PontoGPS> porRuas = null;
+            try {
+                porRuas = RoteamentoRuas.porRuas(pontosOriginais);
+            } catch (IOException e) {
+                // sem rede ou serviço indisponível: a rota fica em linha reta
+            }
+            final List<PontoGPS> resultado = porRuas;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (resultado != null) {
+                    rota.getPontos().clear();
+                    rota.getPontos().addAll(resultado);
+                    if (linhaPlaneada != null) {
+                        List<GeoPoint> geoPontos = Mapa.paraGeoPoints(resultado);
+                        linhaPlaneada.setPoints(geoPontos);
+                        Mapa.ajustarAosPontos(mapa, geoPontos);
+                        mapa.invalidate();
+                    }
+                } else {
+                    Toast.makeText(this, R.string.rota_sem_ruas, Toast.LENGTH_LONG).show();
+                }
+                btnIniciar.setEnabled(true);
+                mostrarEstadoPreparacao();
+            });
+        }).start();
+    }
+
 
     /** UC2: arranca o registo do exercício e o serviço de GPS (ao carregar em "Iniciar atividade"). */
     private void iniciarExercicio() {
@@ -234,7 +286,8 @@ public class ExercicioActivity extends AppCompatActivity {
 
         if (rota.getModo() != Rota.Modo.LIVRE && !rota.getPontos().isEmpty()) {
             List<GeoPoint> planeada = Mapa.paraGeoPoints(rota.getPontos());
-            mapa.getOverlays().add(Mapa.criarLinha(planeada, Mapa.COR_ROTA_PLANEADA, 12f));
+            linhaPlaneada = Mapa.criarLinha(planeada, Mapa.COR_ROTA_PLANEADA, 12f);
+            mapa.getOverlays().add(linhaPlaneada);
             Mapa.ajustarAosPontos(mapa, planeada);
         } else {
             GeoPoint posicao = Mapa.ultimaPosicaoConhecida(this);

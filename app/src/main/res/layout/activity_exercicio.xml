@@ -24,6 +24,18 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
+    <!-- Botão para centrar o mapa na posição do utilizador -->
+    <ImageButton
+            android:id="@+id/btnCentrar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_above="@id/painelInferior"
+            android:layout_alignParentEnd="true"
+            android:layout_margin="12dp"
+            android:background="#FFFFFFFF"
+            android:contentDescription="@string/atividade_centrar"
+            android:src="@android:drawable/ic_menu_mylocation" />
+
     <!-- Painel inferior: telemetria (UC6) e botões de ação (UC7, UC8, UC9) -->
     <LinearLayout
             android:id="@+id/painelInferior"

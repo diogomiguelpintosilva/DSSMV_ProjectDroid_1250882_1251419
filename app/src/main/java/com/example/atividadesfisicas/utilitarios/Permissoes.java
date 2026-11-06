@@ -10,32 +10,31 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Permissões pedidas ao utilizador com a app a correr: localização e, a partir do Android 13, notificações.
- */
+
+//Permissões pedidas ao utilizador com a app a correr: localização e, a partir do Android 13, notificações.
 public final class Permissoes {
 
     private Permissoes() {
     }
 
-    /** Permissões a pedir ao utilizador. */
+    // Permissões a pedir ao utilizador.
     public static String[] permissoesPedidas() {
         List<String> lista = new ArrayList<>();
-        lista.add(Manifest.permission.ACCESS_FINE_LOCATION);
-        lista.add(Manifest.permission.ACCESS_COARSE_LOCATION);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        lista.add(Manifest.permission.ACCESS_FINE_LOCATION); //localização precisa
+        lista.add(Manifest.permission.ACCESS_COARSE_LOCATION); //localização aprozximada
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { //se for versão mais recente, pede também acesso a notificações
             lista.add(Manifest.permission.POST_NOTIFICATIONS);
         }
-        return lista.toArray(new String[0]);
+        return lista.toArray(new String[0]); //devolve lista de permissões a pedir
     }
 
-    /** A localização precisa (GPS) já foi autorizada? */
+    // A localização precisa (GPS) já foi autorizada?
     public static boolean temLocalizacao(Context ctx) {
         return ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
     }
 
-    /** As notificações podem ser mostradas? (antes do Android 13 não é preciso pedir) */
+    // As notificações podem ser mostradas? (antes do Android 13 não é preciso pedir)
     public static boolean temNotificacoes(Context ctx) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return true;

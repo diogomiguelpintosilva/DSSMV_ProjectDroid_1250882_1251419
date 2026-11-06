@@ -1,50 +1,49 @@
 package com.example.atividadesfisicas.utilitarios;
 
-/**
- * Constantes de configuração da aplicação (um só sítio para ajustar valores).
- */
+//Constantes de configuração da aplicação (um só sítio para ajustar valores).
+
 public final class Config {
 
     private Config() {
     }
 
-    /** Chave da API Web do projeto Firebase (consola Firebase, definições do projeto). O login por email/palavra-passe tem de estar ativo. */
+    // Chave da API Web do projeto Firebase.
     public static final String FIREBASE_API_KEY = "AIzaSyBtXZgijThuMFkOlywY2EXkGqfxfnNbxAk";
 
-    /** Identificação da app nos pedidos de mapas (o OpenStreetMap exige-a). */
+    // Identificação da app nos pedidos de mapas.
     public static final String USER_AGENT_MAPA =
             "DSSMV_ProjectDroid/1.0 (projeto academico ISEP; +https://github.com/diogomiguelpintosilva/DSSMV_ProjectDroid_1250882_1251419)";
 
-    /** Tipo de atividade (a aplicação não distingue corrida de caminhada). */
+    // Tipo de atividade (a aplicação não distingue corrida de caminhada).
     public static final String TIPO_ATIVIDADE = "corrida/caminhada";
 
-    /** Distância máxima à rota planeada antes de ser considerado desvio. */
+    //Distância máxima à rota planeada antes de ser considerado desvio.
     public static final double TOLERANCIA_DESVIO_METROS = 30.0;
 
-    /** Tempo mínimo entre dois avisos de desvio consecutivos. */
+    // Tempo mínimo entre dois avisos de desvio consecutivos.
     public static final long COOLDOWN_AVISO_DESVIO_MS = 15000L;
 
-    /** Intervalo "X em X tempo" entre lembretes para tirar fotos/vídeos (para testar, pôr 30000L). */
+    // Intervalo "X em X tempo" entre lembretes para tirar fotos/vídeos.
     public static final long INTERVALO_LEMBRETE_MS = 2 * 60 * 1000L;
 
-    /** Intervalo pedido ao GPS. */
+    /* Intervalo pedido ao GPS. */
     public static final long GPS_INTERVALO_MS = 1000L;
 
-    /** Pontos GPS com precisão pior do que isto são ignorados. */
+    // Pontos GPS com precisão pior do que isto são ignorados.
     public static final float PRECISAO_MAXIMA_METROS = 50f;
 
-    /** Duração máxima do vídeo resumo (2 minutos). */
+    // Duração máxima do vídeo resumo (2 minutos).
     public static final long VIDEO_RESUMO_MAX_MS = 120000L;
 
-    /** Tempo que cada foto fica no vídeo resumo. */
+    // Tempo que cada foto fica no vídeo resumo.
     public static final long DURACAO_FOTO_NO_RESUMO_MS = 3000L;
 
-    /** Identificador do projeto Firebase, usado no endereço do Firestore. */
+    // Identificador do projeto Firebase, usado no endereço do Firestore.
     public static final String FIREBASE_PROJECT_ID = "wayline-bd8ac";
 
-    /** Débito (bits por segundo) dos vídeos exportados; valores baixos fazem o vídeo ficar pixelado. */
+    // Débito (bits por segundo) dos vídeos exportados; valores baixos fazem o vídeo ficar pixelado.
     public static final int VIDEO_BITRATE = 10_000_000;
 
-    /** Lado maior (em píxeis) das fotos com métricas; 4096 mantém a resolução total da maioria das câmaras. */
+    // Lado maior (em píxeis) das fotos com métricas; 4096 mantém a resolução total da maioria das câmaras.
     public static final int FOTO_LADO_MAXIMO = 4096;
 }

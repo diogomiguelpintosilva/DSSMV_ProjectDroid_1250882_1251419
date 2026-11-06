@@ -8,39 +8,39 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 
-/**
- * UC0: login e criação de conta no Firebase Authentication, através de pedidos HTTP (API REST).
- * A conta fica guardada no Firebase. Os dois pedidos têm o mesmo formato e a mesma resposta.
- * Tem de ser chamado a partir de uma thread de fundo (faz rede).
- * As mensagens de erro estão aqui, em vez de no strings.xml, porque esta classe não tem acesso aos recursos do Android.
+/*
+ login e criação de conta no Firebase Authentication, através de pedidos HTTP.
+ A conta fica guardada no Firebase. Os dois pedidos têm o mesmo formato e a mesma resposta.
+ Tem de ser chamado a partir de uma thread de fundo.
+ As mensagens de erro estão aqui, em vez de no strings.xml, porque esta classe não tem acesso aos recursos do Android.
  */
 public final class Autenticacao {
 
     private static final String URL_LOGIN =
-            "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
+            "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key="; //para entrar em conta existente
     private static final String URL_CRIAR_CONTA =
-            "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=";
+            "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key="; //para criar conta nova
 
+    //CONSTRUTOR
     private Autenticacao() {
     }
 
-    /** Faz login com uma conta que já existe. */
+    // Faz login com uma conta que já existe.
     public static RespostaLogin login(String email, String password) throws ErroAutenticacao {
         return enviarPedido(URL_LOGIN, email, password, "Não foi possível iniciar sessão.");
     }
 
-    /**
-     * Cria uma conta nova no Firebase. Se correr bem, o utilizador já pode fazer login com o email e a
-     * palavra-passe escolhidos.
+    /*
+      Cria uma conta nova no Firebase. Se correr bem, o utilizador já pode fazer login com o email e a
+      palavra-passe escolhidos.
      */
     public static RespostaLogin criarConta(String email, String password) throws ErroAutenticacao {
         return enviarPedido(URL_CRIAR_CONTA, email, password, "Não foi possível criar a conta.");
     }
 
-    /**
-     * Envia o email e a palavra-passe para o endereço indicado (login ou criar conta).
-     *
-     * @param mensagemGenerica texto usado quando o Firebase devolve um erro que não conhecemos
+    /*
+      Envia o email e a palavra-passe para o endereço indicado (login ou criar conta).
+      mensagemGenerica texto usado quando o Firebase devolve um erro que não conhecemos
      */
     private static RespostaLogin enviarPedido(String urlBase, String email, String password,
                                               String mensagemGenerica) throws ErroAutenticacao {
@@ -50,9 +50,9 @@ public final class Autenticacao {
 
             // código 200 = correu bem
             if (resposta.codigo == 200) {
-                return RespostaLogin.fromJson(resposta.corpo);
+                return RespostaLogin.fromJson(resposta.corpo); //pedido bem sucedido, com resposta positiva
             }
-            throw new ErroAutenticacao(traduzirErro(resposta.corpo, mensagemGenerica));
+            throw new ErroAutenticacao(traduzirErro(resposta.corpo, mensagemGenerica)); //ERROS
         } catch (IOException e) {
             throw new ErroAutenticacao("Sem ligação à internet ou servidor indisponível.");
         } catch (JSONException e) {
@@ -60,9 +60,9 @@ public final class Autenticacao {
         }
     }
 
-    /**
-     * O Firebase devolve os erros em inglês, por exemplo {"error":{"message":"EMAIL_EXISTS"}}.
-     * Este método converte o código numa mensagem em português.
+    /*
+     O Firebase devolve os erros em inglês.
+     Este metodo converte o código numa mensagem em português.
      */
     private static String traduzirErro(String corpo, String mensagemGenerica) {
         String codigo = "";

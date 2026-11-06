@@ -18,9 +18,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * O histórico de exercícios do utilizador. Fica no telemóvel (SharedPreferences, separado por conta)
- * e é sincronizado com o Firestore, tal como as rotas criadas.
+/*
+ O histórico de exercícios do utilizador. Fica no telemóvel
+ e é sincronizado com o Firebase, tal como as rotas criadas.
  */
 public final class HistoricoGuardado {
 
@@ -31,15 +31,15 @@ public final class HistoricoGuardado {
     private HistoricoGuardado() {
     }
 
-    /** O ficheiro de preferências desta conta (historico_<uid>). */
+    // O ficheiro de preferências desta conta
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getSharedPreferences(PREFS + "_" + Sessao.getInstance().getUid(), Context.MODE_PRIVATE);
     }
 
-    /** Lista as atividades, da mais recente para a mais antiga. */
+    // Lista as atividades, da mais recente para a mais antiga.
     public static synchronized List<RegistoAtividade> listar(Context ctx) {
         List<RegistoAtividade> lista = new ArrayList<>();
-        String json = prefs(ctx).getString(CHAVE, "[]");
+        String json = prefs(ctx).getString(CHAVE, "[]"); // abre ficheiro com rotas guardadas e pede rotas que lá estão para a variavel json
         try {
             JSONArray arr = new JSONArray(json);
             for (int i = 0; i < arr.length(); i++) {
@@ -48,11 +48,15 @@ public final class HistoricoGuardado {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        // ordem inversa da data de início: o mais recente primeiro
+        // sort ordena a lista pelo critério da lambda: recebe duas atividades (a, b)
+        // compare devolve negativo / 0 / positivo conforme o tamanho dos dois números
+        // b antes de a = ordem inversa, por isso a mais recente (maior início) fica primeiro
+        //get.inico devolve quando foi começada a atividade
         Collections.sort(lista, (a, b) -> Long.compare(b.getInicio(), a.getInicio()));
         return lista;
     }
 
+    //Ver RotasGuardadas
     private static synchronized void gravarLocal(Context ctx, List<RegistoAtividade> lista) {
         JSONArray arr = new JSONArray();
         try {
@@ -66,7 +70,7 @@ public final class HistoricoGuardado {
         prefs(ctx).edit().putString(CHAVE, arr.toString()).apply();
     }
 
-    /** Procura um registo pelo id (ou null se não existir). */
+    // Procura um registo pelo id (ou null se não existir).
     public static synchronized RegistoAtividade procurar(Context ctx, String id) {
         for (RegistoAtividade r : listar(ctx)) {
             if (r.getId().equals(id)) {
@@ -76,27 +80,27 @@ public final class HistoricoGuardado {
         return null;
     }
 
-    /** Guarda o exercício terminado no histórico e envia-o para a cloud em segundo plano. */
+    // Guarda o exercício terminado no histórico e envia-o para a cloud em segundo plano.
     public static synchronized void guardar(Context ctx, Atividade atividade) {
         if (atividade == null) {
             return;
         }
-        final RegistoAtividade registo = RegistoAtividade.de(atividade);
+        final RegistoAtividade registo = RegistoAtividade.de(atividade); //pega na atividade e controí o resumo, simplifica rota e define id(ver RegistoAtividade no modelo)
         List<RegistoAtividade> lista = listar(ctx);
         boolean existe = false;
-        for (RegistoAtividade r : lista) {
+        for (RegistoAtividade r : lista) {//vai ver o histºorico de atividade e vê se existe com mesmo id
             if (r.getId().equals(registo.getId())) {
-                existe = true;
+                existe = true; //se encontrar com mesmo id
                 break;
             }
         }
         if (existe) {
             return;
         }
-        lista.add(registo);
+        lista.add(registo); //adiciona à lista
         gravarLocal(ctx, lista);
         new Thread(() -> {
-            try {
+            try { //noutra thread chama a BaseDadosCloud para guardar
                 BaseDadosCloud.guardar(COLECAO, registo.getId(), registo.toJson().toString(), registo.getInicio());
             } catch (IOException | JSONException e) {
                 // sem rede ou sem sessão: fica só local e é reenviado na próxima sincronização
@@ -104,9 +108,10 @@ public final class HistoricoGuardado {
         }).start();
     }
 
-    /**
-     * Junta o histórico da cloud com o do telemóvel (nos dois sentidos).
-     * Chamar a partir de uma thread de fundo.
+    /*
+     Junta o histórico da cloud com o do telemóvel (nos dois sentidos).
+     Chamar a partir de uma thread de fundo.
+     Ver RotasGuardadas.
      */
     public static void sincronizar(Context ctx) throws IOException {
         List<String> remotos = BaseDadosCloud.listar(COLECAO);

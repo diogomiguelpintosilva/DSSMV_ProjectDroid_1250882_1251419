@@ -16,13 +16,14 @@ import com.example.atividadesfisicas.utilitarios.Config;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Guarda o exercício (atividade) em curso. É partilhado entre o serviço de GPS, que escreve,
- * e os ecrãs, que leem. Calcula a distância, a velocidade e a velocidade média.
- * Todos os métodos são synchronized porque há várias threads a usá-lo.
+/*
+ Guarda o exercício (atividade) em curso. É partilhado entre o serviço de GPS, que escreve,
+ e os ecrãs, que leem. Calcula a distância, a velocidade e a velocidade média.
+ Todos os métodos são synchronized porque há várias threads a usá-lo.
  */
 public final class GestorExercicio {
 
+    //ATRIBUTOS
     private static final GestorExercicio INSTANCIA = new GestorExercicio();
 
     private Atividade atual;
@@ -33,6 +34,7 @@ public final class GestorExercicio {
     private AvisoDesvio ultimoAviso;
     private LembreteMultimedia ultimoLembrete;
 
+    //CONSTRUTOR
     private GestorExercicio() {
     }
 
@@ -40,7 +42,7 @@ public final class GestorExercicio {
         return INSTANCIA;
     }
 
-    /** UC2: começa um exercício novo na rota indicada. */
+    //começa um exercício novo na rota indicada.
     public synchronized void iniciar(Rota rota) {
         atual = new Atividade(Config.TIPO_ATIVIDADE, System.currentTimeMillis(), rota);
         inicioElapsed = SystemClock.elapsedRealtime();
@@ -50,7 +52,7 @@ public final class GestorExercicio {
         ultimoLembrete = null;
         ativa = true;
     }
-
+    //GETTERS
     public synchronized boolean isAtiva() {
         return ativa;
     }
@@ -59,25 +61,25 @@ public final class GestorExercicio {
         return atual;
     }
 
-    /** Tempo decorrido: calculado agora se o exercício está ativo, ou o valor final se já terminou. */
+    //Tempo decorrido: calculado agora se o exercício está ativo, ou o valor final se já terminou.
     public synchronized long getTempoDecorridoMs() {
         if (atual == null) {
             return 0;
         }
         return ativa ? SystemClock.elapsedRealtime() - inicioElapsed : atual.getTempoDecorrido();
-    }
+    }//se estiver ativa calcula o tempo que decorreu, senão devolve o tempo que decorreu
 
-    /** Chamado pelo serviço de GPS a cada nova posição. Calcula a velocidade, a distância e a telemetria. */
+    // Chamado pelo serviço de GPS a cada nova posição. Calcula a velocidade, a distância e a telemetria.
     public synchronized void registarLocalizacao(Location loc) {
         if (!ativa || loc == null) {
             return;
         }
-        if (loc.hasAccuracy() && loc.getAccuracy() > Config.PRECISAO_MAXIMA_METROS) {
+        if (loc.hasAccuracy() && loc.getAccuracy() > Config.PRECISAO_MAXIMA_METROS) { //se a precisão fro pior que a precisao máxima
             return;
         }
 
         long agora = System.currentTimeMillis();
-        double altitude = loc.hasAltitude() ? loc.getAltitude() : 0;
+        double altitude = loc.hasAltitude() ? loc.getAltitude() : 0; //sew houver calcula, senão usa 0
         PontoGPS ponto = new PontoGPS(loc.getLatitude(), loc.getLongitude(), altitude, agora);
 
         // o GPS dá a velocidade em m/s; × 3,6 converte para km/h
@@ -87,26 +89,27 @@ public final class GestorExercicio {
             float[] resultado = new float[1];
             Location.distanceBetween(ultimoPonto.getLatitude(), ultimoPonto.getLongitude(),
                     ponto.getLatitude(), ponto.getLongitude(), resultado);
-            float distancia = resultado[0];
+            float distancia = resultado[0]; //distancia entre ultimo ponto
 
             // ignora pequenas oscilações do GPS quando o utilizador está parado
-            if (distancia >= 1.5f) {
+            if (distancia >= 1.5f) { //somar à distancia total, não contando com oscilações
                 atual.setDistanciaTotal(atual.getDistanciaTotal() + distancia);
             }
-            if (!loc.hasSpeed()) {
-                double dt = (agora - ultimoPonto.getInstante()) / 1000.0;
-                velocidadeKmh = dt > 0 ? (distancia / dt) * 3.6 : 0;
+            if (!loc.hasSpeed()) { //para o caso de gps não dar velocidade, calcula-se
+                double dt = (agora - ultimoPonto.getInstante()) / 1000.0; //tempo entre pontos em segundos(ms->s)
+                velocidadeKmh = dt > 0 ? (distancia / dt) * 3.6 : 0; //calcular velocidade em km/h(*3,6)
             }
         }
 
         ultimoPonto = ponto;
-        atual.getPercurso().add(ponto);
+        atual.getPercurso().add(ponto);//guardar ponto no percurso, passa a ser ultimoPonto
 
         Telemetria t = new Telemetria(getTempoDecorridoMs(), velocidadeKmh, altitude, agora);
         ultimaTelemetria = t;
-        atual.getTelemetria().add(t);
+        atual.getTelemetria().add(t);//guardar telemetria
     }
 
+    //MAIS GETTERS
     public synchronized PontoGPS getUltimoPonto() {
         return ultimoPonto;
     }
@@ -115,7 +118,7 @@ public final class GestorExercicio {
         return ultimaTelemetria;
     }
 
-    /** Cópia do percurso (para quem lê não ser afetado pelos pontos que o serviço vai acrescentando). */
+    //Cópia do percurso (para quem lê não ser afetado pelos pontos que o serviço vai acrescentando).
     public synchronized List<PontoGPS> copiaPercurso() {
         if (atual == null) {
             return new ArrayList<>();
@@ -127,7 +130,7 @@ public final class GestorExercicio {
         if (atual == null) {
             return new ArrayList<>();
         }
-        return new ArrayList<>(atual.getTelemetria());
+        return new ArrayList<>(atual.getTelemetria()); //devolve copia da lista, não a original pq o ServicoGps está sempre a acrescentar pontos, oq não pode acontecer enquanto o ecrâ corre
     }
 
     public synchronized void registarAviso(AvisoDesvio aviso) {
@@ -165,7 +168,7 @@ public final class GestorExercicio {
         }
     }
 
-    /** UC9: fixa o fim e calcula o tempo total e a velocidade média (km ÷ horas). */
+    //fixa o fim e calcula o tempo total e a velocidade média (km ÷ horas).
     public synchronized void terminar() {
         if (!ativa || atual == null) {
             return;
@@ -175,10 +178,10 @@ public final class GestorExercicio {
         atual.setDataHoraFim(System.currentTimeMillis());
         atual.setTempoDecorrido(tempoTotal);
         if (tempoTotal > 0) {
-            double horas = tempoTotal / 3600000.0;
-            atual.setVelocidadeMedia((atual.getDistanciaTotal() / 1000.0) / horas);
+            double horas = tempoTotal / 3600000.0; //converte milisegundo em hora
+            atual.setVelocidadeMedia((atual.getDistanciaTotal() / 1000.0) / horas); // km/hora
         } else {
-            atual.setVelocidadeMedia(0);
+            atual.setVelocidadeMedia(0); //se tempo for 0
         }
     }
 }

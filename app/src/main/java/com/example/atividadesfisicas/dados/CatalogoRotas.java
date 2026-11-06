@@ -6,27 +6,27 @@ import com.example.atividadesfisicas.modelo.Rota;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * UC3: as rotas predefinidas, iguais para todos os utilizadores.
- * As duas primeiras usam coordenadas de exemplo no centro do Porto.
+/*
+ rotas predefinidas, iguais para todos os utilizadores.
+ As duas primeiras usam coordenadas de exemplo no centro do Porto.
  */
 public final class CatalogoRotas {
 
     private CatalogoRotas() {
     }
 
-    /** Devolve uma lista nova com as rotas predefinidas. */
+    // Devolve uma lista nova com as rotas predefinidas.
     public static List<Rota> obter() {
         List<Rota> lista = new ArrayList<>();
 
-        Rota centro = new Rota("pre_1", "Centro do Porto ", Rota.Modo.PREDEFINIDA);
+        Rota centro = new Rota("pre_1", "Centro do Porto", Rota.Modo.PREDEFINIDA);
         adicionar(centro, 41.14582, -8.61398); // Torre dos Clérigos
         adicionar(centro, 41.14690, -8.61100); // Praça da Liberdade
         adicionar(centro, 41.14064, -8.61386); // Ribeira
         adicionar(centro, 41.13990, -8.60940); // Ponte D. Luís
         lista.add(centro);
 
-        Rota jardim = new Rota("pre_2", "Clérigos - Palácio de Cristal ", Rota.Modo.PREDEFINIDA);
+        Rota jardim = new Rota("pre_2", "Clérigos - Palácio de Cristal", Rota.Modo.PREDEFINIDA);
         adicionar(jardim, 41.14582, -8.61398);
         adicionar(jardim, 41.14700, -8.62000);
         adicionar(jardim, 41.14750, -8.62540); // Palácio de Cristal

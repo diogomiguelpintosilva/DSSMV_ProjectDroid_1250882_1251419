@@ -26,7 +26,7 @@ public final class Config {
     // Intervalo "X em X tempo" entre lembretes para tirar fotos/vídeos.
     public static final long INTERVALO_LEMBRETE_MS = 2 * 60 * 1000L;
 
-    /* Intervalo pedido ao GPS. */
+    // Intervalo pedido ao GPS.
     public static final long GPS_INTERVALO_MS = 1000L;
 
     // Pontos GPS com precisão pior do que isto são ignorados.

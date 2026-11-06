@@ -6,47 +6,42 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Modelo de domínio: rota (predefinida, criada previamente ou livre) composta por pontos GPS.
- */
 public class Rota {
 
-    public enum Modo { PREDEFINIDA, CRIADA, LIVRE }
-
+    //ATRIBUTOS
+    public enum Modo { PREDEFINIDA, CRIADA, LIVRE } //modalidades de rotas
     private final String id;
     private final String nome;
     private final Modo modo;
     private final List<PontoGPS> pontos = new ArrayList<>();
 
+    //CONSTRUTOR
     public Rota(String id, String nome, Modo modo) {
         this.id = id;
         this.nome = nome;
         this.modo = modo;
     }
 
+    //GETTERS
     public String getId() {
         return id;
     }
-
     public String getNome() {
         return nome;
     }
-
     public Modo getModo() {
         return modo;
     }
-
     public List<PontoGPS> getPontos() {
         return pontos;
     }
-
     public void adicionarPonto(PontoGPS ponto) {
         pontos.add(ponto);
     }
 
-    /**
-     * Cria uma rota do modo CRIADA (planeada pelo utilizador ou guardada a partir do modo livre)
-     * com um id único. Os pontos ficam sem instante, porque uma rota não tem horas.
+    /*
+     Cria uma rota do modo CRIADA (planeada pelo utilizador ou guardada a partir do modo livre)
+     com um id único. Os pontos ficam sem instante, porque uma rota não tem horas.
      */
     public static Rota criada(String nome, List<PontoGPS> pontos) {
         Rota rota = new Rota("criada_" + System.currentTimeMillis(), nome, Modo.CRIADA);
@@ -56,6 +51,11 @@ public class Rota {
         return rota;
     }
 
+
+    /*
+    Converte a rota para JSON.
+    Vai percorrer o vetor de pontos e vai criar o JSON de cada um deles
+     */
     public JSONObject toJson() throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("id", id);
@@ -65,26 +65,28 @@ public class Rota {
         for (PontoGPS p : pontos) {
             arr.put(p.toJson());
         }
-        obj.put("pontos", arr);
+        obj.put("pontos", arr); //?
         return obj;
     }
 
+    //Converte de JSON para rota
     public static Rota fromJson(JSONObject obj) throws JSONException {
         Rota rota = new Rota(
+                //atributos essenciais de rota
                 obj.getString("id"),
                 obj.getString("nome"),
                 Modo.valueOf(obj.getString("modo"))
-        );
+        ); //Vai percorrer vetor de JSON e converter para pontos e adicionar à rota.
         JSONArray arr = obj.getJSONArray("pontos");
         for (int i = 0; i < arr.length(); i++) {
             rota.adicionarPonto(PontoGPS.fromJson(arr.getJSONObject(i)));
         }
-        return rota;
+        return rota;//devolve o conjunto de pontos
     }
 
-    /** Texto de cada linha da lista de rotas (o ArrayAdapter usa o toString). */
+
     @Override
-    public String toString() {
+    public String toString() { //Todos os objetos java têm ????
         return nome;
     }
 }

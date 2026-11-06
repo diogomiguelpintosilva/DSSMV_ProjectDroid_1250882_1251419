@@ -13,12 +13,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Resumo de uma atividade já terminada, guardado no histórico (local e na cloud).
- * Não inclui as fotos/vídeos (ficam no telemóvel onde foram tiradas).
+/*
+ Resumo de uma atividade já terminada, guardado no histórico (local e na cloud).
+ Não inclui as fotos/vídeos (ficam no telemóvel onde foram tiradas).
  */
 public class RegistoAtividade {
-
+    //ATRIBUTOS(de atividade terminada)
     private final String id;
     private final String nomeRota;
     private final String modo;
@@ -31,6 +31,7 @@ public class RegistoAtividade {
     private final int numVideos;
     private final List<PontoGPS> percurso;
 
+    //CONSTRURTOR
     public RegistoAtividade(String id, String nomeRota, String modo, long inicio, long tempoMs,
                             double distanciaMetros, double velocidadeMediaKmh, int numAvisos,
                             int numFotos, int numVideos, List<PontoGPS> percurso) {
@@ -47,7 +48,7 @@ public class RegistoAtividade {
         this.percurso = percurso;
     }
 
-    /** Cria o registo a partir de uma atividade terminada. */
+    /* Cria o registo a partir de uma atividade terminada. */
     public static RegistoAtividade de(Atividade a) {
         int fotos = 0;
         int videos = 0;
@@ -62,56 +63,47 @@ public class RegistoAtividade {
                 a.getRota().getModo().name(), a.getDataHoraInicio(), a.getTempoDecorrido(),
                 a.getDistanciaTotal(), a.getVelocidadeMedia(), a.getAvisos().size(), fotos, videos,
                 SimplificarPercurso.simplificar(a.getPercurso(), 5, 600));
-    }
+    }           //Simplificar percurso, usando apenas pontos a pelo menos 5m de cada um, e máx. de 600m.
 
+    //GETTERS
     public String getId() {
         return id;
     }
-
     public String getNomeRota() {
         return nomeRota;
     }
-
     public String getModo() {
         return modo;
     }
-
     public long getInicio() {
         return inicio;
     }
-
     public long getTempoMs() {
         return tempoMs;
     }
-
     public double getDistanciaMetros() {
         return distanciaMetros;
     }
-
     public double getVelocidadeMediaKmh() {
         return velocidadeMediaKmh;
     }
-
     public int getNumAvisos() {
         return numAvisos;
     }
-
     public int getNumFotos() {
         return numFotos;
     }
-
     public int getNumVideos() {
         return numVideos;
     }
-
     public List<PontoGPS> getPercurso() {
         return percurso;
     }
-
     public String getDataFormatada() {
         return new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(new Date(inicio));
-    }
+    }   //Cria data e hora organizada apartir dos MS passados
 
+    //Converte o resgisto para JSON, sendo o percurso uma lista de pontos
     public JSONObject toJson() throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("id", id);
@@ -132,9 +124,10 @@ public class RegistoAtividade {
         return obj;
     }
 
+    //Lê um registo apartir do JSON
     public static RegistoAtividade fromJson(JSONObject obj) throws JSONException {
         List<PontoGPS> pontos = new ArrayList<>();
-        JSONArray arr = obj.optJSONArray("percurso");
+        JSONArray arr = obj.optJSONArray("percurso"); //opt -> valores opcionais, não falha se faltar algum atributo
         if (arr != null) {
             for (int i = 0; i < arr.length(); i++) {
                 pontos.add(PontoGPS.fromJson(arr.getJSONObject(i)));
@@ -146,7 +139,7 @@ public class RegistoAtividade {
                 obj.optInt("fotos", 0), obj.optInt("videos", 0), pontos);
     }
 
-    /** Texto mostrado na lista do histórico. */
+    // Texto mostrado na lista do histórico.
     @Override
     public String toString() {
         return getDataFormatada() + "\n" + nomeRota + " · " + Formatacao.formatarDistancia(distanciaMetros)

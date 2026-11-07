@@ -86,7 +86,7 @@ public final class MetricasFoto {
     }
 
     /** Texto branco sobre um retângulo semitransparente, no canto inferior esquerdo. */
-    private static void desenharTexto(Canvas tela, int largura, int altura, Telemetria telemetria) {
+    static void desenharTexto(Canvas tela, int largura, int altura, Telemetria telemetria) {
         String texto = Formatacao.textoMetricas(telemetria);
         Paint tintaTexto = new Paint(Paint.ANTI_ALIAS_FLAG);
         tintaTexto.setColor(Color.WHITE);

@@ -26,7 +26,7 @@ public final class SincronizacaoCloud {
         new Thread(() -> {                                  //getMainLooper devolve fila da thread principal
             try {
                 RotasGuardadas.sincronizar(app);
-            } catch (IOException e) {                       //est parte apenas manda outros métodos trabalhar
+            } catch (IOException e) {
                 // continua com os dados locais
             }
             try {
